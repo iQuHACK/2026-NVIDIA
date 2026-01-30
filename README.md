@@ -69,7 +69,7 @@ If any issues occur, try deleting cache in your browser and refreshing the page.
 9. Happy Hacking!
 
 
-For any questions or additional assistance using qBraid, see the [lab documentation](https://docs.qbraid.com/lab/user-guide/getting-started), or reach out to the qBraid team on discord. 
+For any questions or additional assistance using qBraid, see the [v2 platform documentation](https://docs.qbraid.com/v2/home/introduction), or reach out to the qBraid team on discord.
 
 
 ## Accessing Phase 2 of the Challenge with Brev
