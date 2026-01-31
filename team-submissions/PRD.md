@@ -30,10 +30,14 @@
     * *Adiabatic transition:* Returns to slower, more controlled evolution at the end to ensure convergence to high-quality solutions and maintain quantum coherence during the critical final stages.
     * The strategy is particularly suited for LABS optimization where initial exploration is crucial, but final convergence requires careful tuning.
 
-<!-- ### Literature Review
-* **Reference:** [Title, Author, Link]
-* **Relevance:** [How does this paper support your plan?]
-    * *Example:* "Reference: 'QAOA for MaxCut.' Relevance: Although LABS is different from MaxCut, this paper demonstrates how parameter concentration can speed up optimization, which we hope to replicate." -->
+### Literature Review
+* **Reference:** "New Improvements in Solving Large LABS Instances Using Massively Parallelizable Memetic Tabu Search" by Zhiwei Zhang, Jiayu Shen, Niraj Kumar, and Marco Pistoia (2025) - [https://arxiv.org/html/2504.00987v2](https://arxiv.org/html/2504.00987v2)
+* **Relevance:** This paper provides the classical benchmark for our quantum-classical hybrid approach. It demonstrates:
+    * State-of-the-art classical MTS implementation achieving up to 26× speedup on GPU compared to CPU implementations
+    * Best-known LABS solutions for N=92-120, with new merit factor records for 16 problem sizes
+    * Efficient GPU parallelization strategies (block-level and thread-level) that inform our classical acceleration design
+    * Evidence that general-purpose solvers outperform skew-symmetry-constrained methods, validating our unrestricted quantum search approach
+    * Serves as the performance baseline we aim to match or exceed with our DCQO + GPU-accelerated MTS hybrid approach
 
 ---
 
