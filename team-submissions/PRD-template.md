@@ -19,7 +19,7 @@
 | :--- | :--- | :--- | :--- |
 | **Project Lead** (Architect) | [Name] | [@handle] | [@handle] |
 | **GPU Acceleration PIC** (Builder) | [Name] | [@handle] | [@handle] |
-| **Quality Assurance PIC** (Verifier) | [Name] | [@handle] | [@handle] |
+| **Quality Assurance PIC** (Verifier) | [YuChao,Hsu] | [Astor-Hsu] | [Yuchao0520] |
 | **Technical Marketing PIC** (Storyteller) | [Name] | [@handle] | [@handle] |
 
 ---
