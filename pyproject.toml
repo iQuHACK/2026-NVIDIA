@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "GQEMTS"
+description = "Quantum-enhanced Generative Quantum Eigensolver with Tensor Networks and Multi-Trajectory Search for LABS Problem"
+readme = "README.md"
+requires-python = ">=3.11"
+version = "0.1.0"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent"
+]
+dependencies = [
+  "torch",
+  "qkan>=0.1.4",
+  "cudaq",
+  "transformers",
+  "lightning",
+  "ml_collections",
+  "mpi4py",
+]
+
+[project.urls]
+Homepage = "https://github.com/Jim137/2026-NVIDIA"
+
+[tool.ruff]
+lint.select = ["F", "I"]
