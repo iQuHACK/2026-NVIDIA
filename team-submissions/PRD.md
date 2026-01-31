@@ -13,7 +13,7 @@
 | **Project Lead** (Architect) | Benjamin Chauhan | [@Meeeee6623](https://github.com/Meeeee6623) | @vivacious_cheetah_00727 |
 | **GPU Acceleration PIC** (Builder) | Trent Seaman | [@Tridentinus](https://github.com/Tridentinus) | @_chevaliermalfet |
 | **Quality Assurance PIC** (Verifier) | Martin Castellanos-Cubides | [@martcc](https://github.com/martcc) | @bonniegamerfreddyplaysforever |
-| **Quality Assurance PIC** (Verifier) | Sanjeev Chauhan | [@sanjeev-one](https://github.com/sanjeev-one) | @exquisite_dove_79161 |
+|  | Sanjeev Chauhan | [@sanjeev-one](https://github.com/sanjeev-one) | @exquisite_dove_79161 |
 | **Technical Marketing PIC** (Storyteller) | Joseph Telaak | [@The1TrueJoe](https://github.com/The1TrueJoe) | @jtela |
 
 ---
