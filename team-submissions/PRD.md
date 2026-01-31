@@ -50,7 +50,7 @@
 **Owner:** GPU Acceleration PIC
 
 ### Quantum Acceleration (CUDA-Q)
-    * We will first synthesize the quantum circuit with CUDA-Q, then convert it to a tensor network to leverage multi-GPU acceleration, speeding up the training process of the GQE framework.
+  * We will first synthesize the quantum circuit with CUDA-Q, then convert it to a tensor network to leverage multi-GPU acceleration, speeding up the training process of the GQE framework.
  
 
 ### Classical Acceleration (MTS)
