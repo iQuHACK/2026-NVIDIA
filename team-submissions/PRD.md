@@ -14,7 +14,7 @@
 | :--- | :--- | :--- | :--- |
 | **Project Lead** (Architect) | Brayden Mendoza | brayjmendoza | BrayJ |
 | **GPU Acceleration PIC** (Builder) | Chengyi Tang | chtang-hmc | chengyitang |
-| **Quality Assurance PIC** (Verifier) | Sofiia Zaozerska, Jiani Fu | szaozerska, fjn004 | sofigoldfox, jiafu1234 |
+| **Quality Assurance PIC** (Verifier) | Sofiia Zaozerska, Jiani Fu | szaozerska, jiafu1234 | sofigoldfox, fjn004 |
 | **Technical Marketing PIC** (Storyteller) | Zaara Bhatia | Zaara230761 | zaarabhatia_31348 |
 
 ---
