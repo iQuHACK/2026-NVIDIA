@@ -50,7 +50,6 @@
 **Owner:** GPU Acceleration PIC
 
 ### Quantum Acceleration (CUDA-Q)
-* **Strategy:** [How will you use the GPU for the quantum part?]
     * We will first synthesize the quantum circuit with CUDA-Q, then convert it to a tensor network to leverage multi-GPU acceleration, speeding up the training process of the GQE framework.
  
 
