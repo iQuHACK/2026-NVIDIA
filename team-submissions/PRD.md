@@ -137,13 +137,13 @@ To validate both the physical fidelity of the LABS objective and the correctness
 
 
 ### Success Metrics
-* **Metric 1 (Approximation):** [Target Ratio > 0.9 for N=30]
+* **Metric 1 (Approximation):** [Merit Factor F = N² / (2E) > 6.0 for N=40.]
 * **Metric 2 (Speedup):** [Achieve 10× speedup for classical MTS phase]
 * **Metric 3 (Scalability):** [Successfully execute GQE-MTS for N =35,40,45]
-* **Metric 4 (Quantum Advantage):** [Hybrid Quantum seed initialization outperforms random initialization ]
+* **Metric 4 (Quantum Advantage):** [Ｑuantum seed demonstrates advantages over random initialization]
 ### Visualization Plan
-* **Plot 1:** [e.g., "Time-to-Solution vs. Problem Size (N)" comparing CPU vs. GPU]
-* **Plot 2:** [e.g., "Convergence Rate" (Energy vs. Iteration count) for the Quantum Seed vs. Random Seed]
+* **Plot 1:** [Solution Time as a Function of Problem Size (N) Across CPU and GPU Architectures]
+* **Plot 2:** [Convergence Rate (Energy vs Iteration) for Quantum vs Random vs Classical]
 
 ---
 
