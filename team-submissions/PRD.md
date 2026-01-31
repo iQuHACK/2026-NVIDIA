@@ -148,6 +148,6 @@ To validate both the physical fidelity of the LABS objective and the correctness
 ## 6. Resource Management Plan
 **Owner:** GPU Acceleration PIC 
 
-* **Plan:** [How will you avoid burning all your credits?]
+* **Plan:**
     * We will develop entirely on Qbraid (CPU) until the unit tests pass. Then, we will only use Brev for POC, before moving to our local machine for the final benchmarking.
     * The GPU Acceleration PIC is responsible for manually shutting down the Brev instance whenever the team takes a break.
