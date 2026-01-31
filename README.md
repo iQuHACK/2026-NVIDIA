@@ -78,7 +78,7 @@ For any questions or additional assistance using qBraid, see the [v2 platform do
 
 ## Accessing Phase 2 of the Challenge with Brev
 
-<a href="https://brev.nvidia.com/" target="_parent"><img src="https://brev-assets.s3.us-west-1.amazonaws.com/nv-lb-dark.svg" width="150"/></a>
+<a href="https://brev.nvidia.com/launchable/deploy/now?launchableID=env-391pjNSaBAajooK1GS6nezybfdg" target="_parent"><img src="https://brev-assets.s3.us-west-1.amazonaws.com/nv-lb-dark.svg" width="150"/></a>
 
 Congratulations on finishing the first part of the challenge! 
 
