@@ -65,10 +65,41 @@
     * *Example:* "We will require AI-generated kernels to pass a 'property test' (Hypothesis library) ensuring outputs are always within theoretical energy bounds before they are integrated."
 
 ### Core Correctness Checks
-* **Check 1 (Symmetry):** [Describe a specific physics check]
-    * *Example:* "LABS sequence $S$ and its negation $-S$ must have identical energies. We will assert `energy(S) == energy(-S)`."
-* **Check 2 (Ground Truth):**
-    * *Example:* "For $N=3$, the known optimal energy is 1.0. Our test suite will assert that our GPU kernel returns exactly 1.0 for the sequence `[1, 1, -1]`."
+* **Check 1 (Spatial Reversal Symmetry / Z₂ Inversion Symmetry):**
+  * **Principle:** The LABS Hamiltonian is invariant under a global spin-flip transformation,
+    \[
+    S_i \rightarrow -S_i \quad \forall i,
+    \]
+    implying a $\mathbb{Z}_2$ inversion symmetry of the energy landscape.
+  * **Test:** For any candidate spin sequence $S$, its negation $-S$ must yield an identical energy.
+  * **Assertion:**  
+    \[
+    E(S) = E(-S).
+    \]
+  * **Implementation Example:**  
+    We explicitly evaluate both configurations and assert
+    ```python
+    assert energy(S) == energy(-S)
+    ```
+
+* **Check 2 (Ground-Truth Consistency for Small System Sizes):**
+  * **Principle:** For small sequence lengths $N$, the optimal energy values are known exactly and can be obtained via exhaustive enumeration.
+  * **Test:** For $N=3$, the globally optimal sequence is $[1, 1, -1]$ (up to symmetry), with a known minimum energy of $E_{\mathrm{opt}} = 1.0$.
+  * **Assertion:**  
+    The GPU kernel must reproduce the exact analytical value:
+    \[
+    E([1, 1, -1]) = 1.0.
+    \]
+  * **Implementation Example:**  
+    The test suite asserts exact numerical agreement between the kernel output and the known ground-truth value.
+
+* **Check 3 (Translation Invariance / Cyclic Shift Symmetry):**
+  * **Principle:** The LABS objective depends only on pairwise correlations at fixed distances and is invariant under cyclic permutations of the sequence.
+  * **Test:** For any sequence $S = (S_1, \ldots, S_N)$ and its cyclic shift $S'$, the energy must remain unchanged.
+  * **Assertion:**  
+    \[
+    E(S) = E(\mathrm{shift}(S)).
+    \]
 
 ---
 
