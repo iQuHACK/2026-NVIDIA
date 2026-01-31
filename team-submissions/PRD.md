@@ -1,7 +1,7 @@
 # Product Requirements Document
 
-**Project Name:** Ryzzz Gate
-**Team Name:** Planck Scale
+**Project Name:** Ryzzz Gate  
+**Team Name:** Planck Scale  
 **GitHub Repository:** [https://github.com/Meeeee6623/2026-NVIDIA](https://github.com/Meeeee6623/2026-NVIDIA)
 
 ---
