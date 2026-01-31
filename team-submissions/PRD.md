@@ -51,7 +51,7 @@
 
 ### Quantum Acceleration (CUDA-Q)
 * **Strategy:** [How will you use the GPU for the quantum part?]
-    * *Example:* "After testing with a single L4, we will target the `nvidia-mgpu` backend to distribute the circuit simulation across multiple L4s for large $N$."
+    * We will first synthesize the quantum circuit with CUDA-Q, then convert it to a tensor network to leverage multi-GPU acceleration, speeding up the training process of the GQE framework.
  
 
 ### Classical Acceleration (MTS)
@@ -149,6 +149,6 @@ To validate both the physical fidelity of the LABS objective and the correctness
 ## 6. Resource Management Plan
 **Owner:** GPU Acceleration PIC 
 
-* **Plan:** 
+* **Plan:** [How will you avoid burning all your credits?]
     * We will develop entirely on Qbraid (CPU) until the unit tests pass. Then, we will only use Brev for POC, before moving to our local machine for the final benchmarking.
-    * *Example:* "The GPU Acceleration PIC is responsible for manually shutting down the Brev instance whenever the team takes a meal break."
+    * The GPU Acceleration PIC is responsible for manually shutting down the Brev instance whenever the team takes a break.
