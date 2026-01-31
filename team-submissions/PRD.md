@@ -106,7 +106,7 @@ To validate both the physical fidelity of the LABS objective and the correctness
   * **Principle:**  
     The LABS energy computation relies on a deterministic generation of correlation indices.
   * **Test:**  
-    For fixed system sizes $N=12$, the number and structure of generated correlation groups must match theoretical expectations.
+    For fixed system sizes $N=6$, the number and structure of generated correlation groups must match theoretical expectations.
   * **Assertion:**  
     Index generation outputs are checked against known reference patterns.
 
