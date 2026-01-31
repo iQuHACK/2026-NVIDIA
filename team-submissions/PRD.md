@@ -93,13 +93,6 @@
   * **Implementation Example:**  
     The test suite asserts exact numerical agreement between the kernel output and the known ground-truth value.
 
-* **Check 3 (Translation Invariance / Cyclic Shift Symmetry):**
-  * **Principle:** The LABS objective depends only on pairwise correlations at fixed distances and is invariant under cyclic permutations of the sequence.
-  * **Test:** For any sequence $S = (S_1, \ldots, S_N)$ and its cyclic shift $S'$, the energy must remain unchanged.
-  * **Assertion:**  
-    \[
-    E(S) = E(\mathrm{shift}(S)).
-    \]
 
 ---
 
