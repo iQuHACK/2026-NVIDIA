@@ -1,6 +1,5 @@
-from numba import cuda, int32, int8, float32
+from numba import cuda, int32, int8
 import numpy as np
-import math
 
 # Constants for the kernel
 TPB = 128  # Threads Per Block (Adjust based on GPU, usually 128 or 256)
@@ -21,10 +20,16 @@ def labs_memetic_kernel(
     # -----------------------------------------------------------
     # Current sequence s[i]
     s_sh = cuda.shared.array(shape=(256,), dtype=int8)
+    # Best sequence found so far for this walker
+    best_s_sh = cuda.shared.array(shape=(256,), dtype=int8)
     # Correlation array C[k]
     C_sh = cuda.shared.array(shape=(256,), dtype=int32)
     # Tabu list: stores the step number when a bit is free to flip again
     tabu_list_sh = cuda.shared.array(shape=(256,), dtype=int32)
+
+    # Scalar shared state (visible to all threads in the block)
+    current_E_sh = cuda.shared.array(shape=(1,), dtype=int32)
+    best_E_sh = cuda.shared.array(shape=(1,), dtype=int32)
 
     # Reduction arrays for finding the best move
     # We store the delta_E and the bit_index for every thread
@@ -46,6 +51,7 @@ def labs_memetic_kernel(
         # For simplicity here, we map blockID + threadID to a pseudo-random start
         val = 1 if ((bx * N + i) % 2 == 0) else -1
         s_sh[i] = val
+        best_s_sh[i] = val
         tabu_list_sh[i] = 0  # Not tabu initially
 
     cuda.syncthreads()  # Wait for s_sh to be ready
@@ -63,14 +69,13 @@ def labs_memetic_kernel(
 
     # Calculate initial Energy E (Thread 0 does the sum for simplicity)
     # (In production, use a parallel reduction here too)
-    current_E = 0
     if tx == 0:
+        current_E = 0
         for k in range(1, N):
             current_E += C_sh[k] * C_sh[k]
 
-    # Track Global Best for this Walker
-    best_E_walker = current_E
-    # (We should copy best_s too, but skipping for brevity)
+        current_E_sh[0] = current_E
+        best_E_sh[0] = current_E
 
     cuda.syncthreads()
 
@@ -78,6 +83,8 @@ def labs_memetic_kernel(
     # 3. MAIN TABU SEARCH LOOP
     # -----------------------------------------------------------
     for step in range(1, max_steps + 1):
+        current_E = current_E_sh[0]
+        best_E_walker = best_E_sh[0]
 
         # --- A. EVALUATE NEIGHBORS (The Bottleneck) ---
         # Each thread checks a specific bit flip 'j'
@@ -144,33 +151,38 @@ def labs_memetic_kernel(
         best_delta = scratch_val[0]
         best_bit = scratch_idx[0]
 
-        # --- C. UPDATE STATE (Incremental) ---
-        if best_bit != -1:
-            # Parallel Update of C (Optimization from Paper)
-            # Instead of one thread updating all C, split it up!
-            sj_old = s_sh[best_bit]
-
-            # Update C array in parallel
-            for k in range(tx + 1, N, bw):
-                if best_bit < N - k:
-                    C_sh[k] += -2 * sj_old * s_sh[best_bit + k]
-                if best_bit >= k:
-                    C_sh[k] += -2 * s_sh[best_bit - k] * sj_old
-
+        if best_bit == -1:
             cuda.syncthreads()
+            continue
 
-            # Thread 0 updates scalar values and Tabu list
-            if tx == 0:
-                s_sh[best_bit] = -s_sh[best_bit]  # Flip bit
-                current_E += best_delta
+        # --- C. UPDATE STATE (Incremental) ---
+        # Parallel Update of C (Optimization from Paper)
+        # Instead of one thread updating all C, split it up!
+        sj_old = s_sh[best_bit]
 
-                # Update Tabu List
-                # Add simple jitter or fixed tenure
-                tabu_list_sh[best_bit] = step + tabu_tenure
+        # Update C array in parallel
+        for k in range(tx + 1, N, bw):
+            if best_bit < N - k:
+                C_sh[k] += -2 * sj_old * s_sh[best_bit + k]
+            if best_bit >= k:
+                C_sh[k] += -2 * s_sh[best_bit - k] * sj_old
 
-                # Update Best Global
-                if current_E < best_E_walker:
-                    best_E_walker = current_E
+        cuda.syncthreads()
+
+        # Thread 0 updates scalar values and Tabu list
+        if tx == 0:
+            s_sh[best_bit] = -s_sh[best_bit]  # Flip bit
+            current_E = current_E_sh[0] + best_delta
+            current_E_sh[0] = current_E
+
+            # Update Tabu List
+            tabu_list_sh[best_bit] = step + tabu_tenure
+
+            # Update Best Global (+ snapshot best sequence)
+            if current_E < best_E_sh[0]:
+                best_E_sh[0] = current_E
+                for i in range(N):
+                    best_s_sh[i] = s_sh[i]
 
         cuda.syncthreads()
 
@@ -178,17 +190,19 @@ def labs_memetic_kernel(
     # 4. EXPORT RESULTS
     # -----------------------------------------------------------
     if tx == 0:
-        energies_out[bx] = best_E_walker
-        # Copy s_sh to global memory
+        energies_out[bx] = best_E_sh[0]
+        # Copy best_s_sh to global memory
         for i in range(N):
-            population_out[bx, i] = s_sh[i]
+            population_out[bx, i] = best_s_sh[i]
 
 
-def run_gpu_labs(N, num_walkers=1024, max_steps=500):
+def run_gpu_labs(N, num_walkers=1024, max_steps=500, tabu_tenure=15):
     """
     N: Sequence length
     num_walkers: Size of population (Number of GPU Blocks)
     """
+    if N > 256:
+        raise ValueError("N must be <= 256 (shared-memory arrays are size 256)")
     # 1. Prepare Memory
     # Output arrays
     d_population = cuda.device_array((num_walkers, N), dtype=np.int8)
@@ -199,12 +213,14 @@ def run_gpu_labs(N, num_walkers=1024, max_steps=500):
 
     # 2. Kernel Configuration
     threads_per_block = 128
+    if threads_per_block != TPB:
+        raise ValueError("threads_per_block must equal TPB for current kernel")
     blocks = num_walkers
 
     # 3. Launch
     print(f"Launching GPU Search: {blocks} Walkers, {N} bits...")
     labs_memetic_kernel[blocks, threads_per_block](
-        rng_states, d_population, d_energies, N, max_steps, tabu_tenure=15
+        rng_states, d_population, d_energies, N, max_steps, tabu_tenure=tabu_tenure
     )
     cuda.synchronize()
 

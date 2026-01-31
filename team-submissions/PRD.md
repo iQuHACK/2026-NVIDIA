@@ -84,6 +84,8 @@ Total amount will be $17.40. We will leave $2.60 buffer in case of extra benchma
 ## 4. The Verification Plan
 **Owner:** Quality Assurance PIC
 
+All tests could be found in the folder `tests/`.
+
 ### Verification goals (Definition of Done)
 We consider the solver "verified" when it satisfies **correctness**, **reproducibility**, and **GPU/CPU consistency** requirements below:
 

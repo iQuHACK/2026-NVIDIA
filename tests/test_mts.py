@@ -224,3 +224,21 @@ def test_mts_population0_all_sequences_matches_exhaustive_best():
     assert np.array_equal(Es, Es0.astype(np.int64))
     assert int(best_E) == expected_best
     assert hist == [expected_best]
+
+
+def test_energy_rejects_invalid_rank():
+    s = np.ones((2, 3, 4), dtype=np.int8)
+    try:
+        _ = mts.energy(s)
+        assert False, "expected ValueError for invalid ndim"
+    except ValueError:
+        pass
+
+
+def test_mts_rejects_population0_not_2d():
+    pop0 = np.ones((10,), dtype=np.int8)
+    try:
+        _ = mts.MTS(k=5, N=10, population0=pop0, max_iter=0, seed=0)
+        assert False, "expected ValueError for non-2D population0"
+    except ValueError:
+        pass
