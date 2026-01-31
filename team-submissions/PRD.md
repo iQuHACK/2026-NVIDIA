@@ -59,7 +59,7 @@
     *The standard MTS evaluates neighbors one by one. We will use `cupy` to rewrite the energy function to evaluate a batch of 1,000,000 neighbor flips simultaneously on the GPU.
 
 ### Hardware Targets
-* **Dev Environment:** Qbraid (CPU) for logic, Brev L4 for initial GPU testing
+* **Dev Environment:** Qbraid (CPU) for logic, Brev L4 for initial GPU testing.
 * **Production Environment:** 8 nodes with 8x H100-80GB GPUs per node for final N=38 benchmarks.
 
 ---
