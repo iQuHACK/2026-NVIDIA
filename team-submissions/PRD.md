@@ -8,13 +8,6 @@
 
 ---
 
-> **Note to Students:** > The questions and examples provided in the specific sections below are **prompts to guide your thinking**, not a rigid checklist. 
-> * **Adaptability:** If a specific question doesn't fit your strategy, you may skip or adapt it.
-> * **Depth:** You are encouraged to go beyond these examples. If there are other critical technical details relevant to your specific approach, please include them.
-> * **Goal:** The objective is to convince the reader that you have a solid plan, not just to fill in boxes.
-
----
-
 ## 1. Team Roles & Responsibilities
 
 | Role | Name | GitHub Handle | Discord Handle
@@ -168,7 +161,7 @@ We will have the following correctness checks for our LABS solvers.
 
 1. **Comparison to known references**
     * **Barker sequences**: for \(N=7, 11, 13\), verify our energy and autocorrelation calculations reproduce the expected near-perfect behavior (for Barker lengths where applicable) and match known reference energies.
-    * **Exhaustive optimum for small N**: for small \(N\) (e.g., \(N \le 25\) where feasible), compute the exact optimum energy by exhaustive search and confirm our solver reaches it reliably (or at least never reports an energy below the proven optimum).
+    * **Exhaustive optimum for small N**: for small \(N\) (e.g., \(N \le 11\) where feasible), compute the exact optimum energy by exhaustive search and confirm our solver reaches it reliably (or at least never reports an energy below the proven optimum).
     * **External benchmark suite**: Bošković et al. provide reference results; we will compare energies and best-known sequences for basic correctness and regression checks.
 
 2. **Physics / invariance checks (Ising gauge symmetries)**
@@ -187,10 +180,6 @@ For initial correctness checks, we will use both numerical and non-numerical tes
 ## 5. Execution Strategy & Success Metrics
 **Owner:** Technical Marketing PIC
 
-### Agentic Workflow
-* **Plan:** [How will you orchestrate your tools?]
-    * *Example:* "We are using Cursor as the IDE. We have created a `skills.md` file containing the CUDA-Q documentation so the agent doesn't hallucinate API calls. The QA Lead runs the tests, and if they fail, pastes the error log back into the Agent to refactor."
-
 ### Success Metrics
 * **Metric 1 (Approximation):** [e.g., Target Ratio > 0.9 for N=30]
 * **Metric 2 (Speedup):** [e.g., 10x speedup over the CPU-only Tutorial baseline]
@@ -200,6 +189,54 @@ For initial correctness checks, we will use both numerical and non-numerical tes
 * **Plot 1:** [e.g., "Time-to-Solution vs. Problem Size (N)" comparing CPU vs. GPU]
 * **Plot 2:** [e.g., "Convergence Rate" (Energy vs. Iteration count) for the Quantum Seed vs. Random Seed]
 
+### Agentic Workflow
+We use AI agents (ChatGPT) as development accelerators, not autonomous decision-makers.vAI assistance is used for:
+* Translating mathematical expressions into code,
+* Generating boilerplate CUDA-Q kernels and classical routines,
+* Drafting unit tests and identifying likely implementation errors,
+* Clarifying algorithmic details and relevant literature.
+
+All AI-generated outputs are manually reviewed and validated against physical intuition (spin models, Pauli operators), known LABS properties, and unit tests on small problem instances.
+Critical components (energy evaluation, Hamiltonian construction, and MTS transitions) are verified independently to mitigate hallucinations or logic errors.
+
+### Success Metrics
+Success metrics are defined separately for correctness, convergence behavior, and runtime performance.
+
+#### Phase 1: Correctness (Small N)
+**Objective**: Verify correctness of both classical MTS and quantum-enhanced MTS implementations.
+
+**Metrics**: Exact recovery of known minimal energies for LABS instances with $N\leq 10$; agreement between classical and quantum-enhanced energies within numerical tolerance; unit-test coverage of energy functions, Hamiltonian terms, and quantum kernels.
+
+**Expectation**:
+Both approaches should perform equivalently in this regime.
+
+#### Performance and Scaling (Moderate N)
+**Baseline**: Classical MTS initialized with random populations.
+
+**Comparison**: Quantum-enhanced MTS initialized using samples from the quantum circuit.
+
+**Measured Metrics**:
+* Time-to-Threshold:
+Time required to reach a fixed target energy or merit factor.
+
+* Convergence Rate:
+Energy as a function of MTS iterations.
+
+* Initialization Quality:
+Mean and best energy of the initial population.
+
+* Run-to-Run Variability:
+Variance of final energy across repeated runs.
+
+**Expected Outcomes (Conservative)**:
+* For small and moderate problem sizes (N≲30):
+No asymptotic advantage is expected. Quantum-enhanced initialization may reduce convergence time or variance.
+
+* For larger N explored experimentally:
+Any observed improvement will be reported empirically.
+No claims of polynomial or exponential quantum speedup will be made.
+Results will be presented as comparative empirical measurements, not theoretical performance guarantees.
+
 ---
 
 ## 6. Resource Management Plan
@@ -208,6 +245,16 @@ For initial correctness checks, we will use both numerical and non-numerical tes
 * **Plan:** [How will you avoid burning all your credits?]
     * *Example:* "We will develop entirely on Qbraid (CPU) until the unit tests pass. We will then spin up a cheap L4 instance on Brev for porting. We will only spin up the expensive A100 instance for the final 2 hours of benchmarking."
     * *Example:* "The GPU Acceleration PIC is responsible for manually shutting down the Brev instance whenever the team takes a meal break."
+
+    To prevent unnecessary cloud usage, we employ a staged execution strategy.
+Planned Credit Allocation (~$20):
+L4 GPU (development and debugging): ~5 hours (~$5)
+A100 GPU (benchmarking): ~4 hours (~$8)
+Buffer for reruns and debugging: ~$4–5
+Operational Controls:
+Regular manual checks to ensure no idle instances remain active.
+Explicit shutdown of GPU instances after each run.
+Scaling to larger GPUs only after correctness is verified on smaller backends.
 
 ## 7. Detailed Tasking and Scheduling
 
