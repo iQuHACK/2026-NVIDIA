@@ -90,11 +90,11 @@ To validate both the physical fidelity of the LABS objective and the correctness
     For small sequence lengths, the LABS energy can be computed analytically or via exhaustive enumeration, providing exact reference values.
   * **Test:**  
     For $N=3$, the energies of representative sequences are known:
-    \[
+    $
     E([1,1,1]) = 5,\quad
     E([1,1,-1]) = 1,\quad
     E([1,-1,1]) = 5.
-    \]
+    $
   * **Assertion:**  
     The evaluation kernel must reproduce these exact values without numerical deviation.
   * **Implementation:**  
