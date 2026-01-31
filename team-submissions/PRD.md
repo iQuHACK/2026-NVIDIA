@@ -65,33 +65,76 @@
     * *Example:* "We will require AI-generated kernels to pass a 'property test' (Hypothesis library) ensuring outputs are always within theoretical energy bounds before they are integrated."
 
 ### Core Correctness Checks
-* **Check 1 (Spatial Reversal Symmetry / Z₂ Inversion Symmetry):**
-  * **Principle:** The LABS Hamiltonian is invariant under a global spin-flip transformation,
+### Physical and Algorithmic Correctness Checks
+
+To validate both the physical fidelity of the LABS objective and the correctness of the accelerated evaluation pipeline, we design a collection of deterministic and symmetry-aware validation tests. These checks jointly verify analytical correctness, invariance properties, and algorithmic sanity across classical and quantum components.
+
+* **Check 1 (Global Spin-Flip Invariance):**
+  * **Principle:**  
+    The LABS Hamiltonian is invariant under a global inversion of all spins,
     \[
     S_i \rightarrow -S_i \quad \forall i,
     \]
-    implying a $\mathbb{Z}_2$ inversion symmetry of the energy landscape.
-  * **Test:** For any candidate spin sequence $S$, its negation $-S$ must yield an identical energy.
+    leading to a $\mathbb{Z}_2$ symmetry of the energy landscape.
+  * **Test:**  
+    For any sampled spin sequence $S$, its inverted configuration $-S$ must yield the same energy.
   * **Assertion:**  
     \[
     E(S) = E(-S).
     \]
-  * **Implementation Example:**  
-    We explicitly evaluate both configurations and assert
+  * **Implementation:**  
+    We explicitly evaluate both configurations and enforce
     ```python
     assert energy(S) == energy(-S)
     ```
 
-* **Check 2 (Ground-Truth Consistency for Small System Sizes):**
-  * **Principle:** For small sequence lengths $N$, the optimal energy values are known exactly and can be obtained via exhaustive enumeration.
-  * **Test:** For $N=3$, the globally optimal sequence is $[1, 1, -1]$ (up to symmetry), with a known minimum energy of $E_{\mathrm{opt}} = 1.0$.
-  * **Assertion:**  
-    The GPU kernel must reproduce the exact analytical value:
+* **Check 2 (Exact Energy Evaluation for Small Systems):**
+  * **Principle:**  
+    For small sequence lengths, the LABS energy can be computed analytically or via exhaustive enumeration, providing exact reference values.
+  * **Test:**  
+    For $N=3$, the energies of representative sequences are known:
     \[
-    E([1, 1, -1]) = 1.0.
+    E([1,1,1]) = 5,\quad
+    E([1,1,-1]) = 1,\quad
+    E([1,-1,1]) = 5.
     \]
-  * **Implementation Example:**  
-    The test suite asserts exact numerical agreement between the kernel output and the known ground-truth value.
+  * **Assertion:**  
+    The evaluation kernel must reproduce these exact values without numerical deviation.
+  * **Implementation:**  
+    The test suite performs direct comparisons against analytically derived energies.
+
+* **Check 3 (Sequence Reversal Symmetry):**
+  * **Principle:**  
+    The LABS objective depends only on pairwise correlations at fixed distances and is invariant under sequence reversal.
+  * **Test:**  
+    For any sequence $S$, its reversed sequence $S^{\mathrm{rev}}$ must yield the same energy.
+  * **Assertion:**  
+    \[
+    E(S) = E(S^{\mathrm{rev}}).
+    \]
+  * **Implementation:**  
+    Random sequences are reversed and validated via
+    ```python
+    assert energy(S) == energy(S[::-1])
+    ```
+
+* **Check 4 (Index and Correlation Structure Validation):**
+  * **Principle:**  
+    The LABS energy computation relies on a deterministic generation of correlation indices.
+  * **Test:**  
+    For fixed system sizes (e.g., $N=6$ and $N=8$), the number and structure of generated correlation groups must match theoretical expectations.
+  * **Assertion:**  
+    Index generation outputs are checked against known reference patterns.
+
+* **Check ㄓ (Quantum Sampling Advantage Sanity Test):**
+  * **Principle:**  
+    Quantum-assisted sampling should not perform systematically worse than uniform random sampling.
+  * **Test:**  
+    The minimum energy obtained from quantum sampling is compared against a random baseline.
+  * **Assertion:**  
+    \[
+    E_{\text{quantum}}^{\min} \le E_{\text{random}}^{\min}.
+    \]
 
 
 ---
