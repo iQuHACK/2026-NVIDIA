@@ -6,13 +6,6 @@
 
 ---
 
-> **Note to Students:** > The questions and examples provided in the specific sections below are **prompts to guide your thinking**, not a rigid checklist. 
-> * **Adaptability:** If a specific question doesn't fit your strategy, you may skip or adapt it.
-> * **Depth:** You are encouraged to go beyond these examples. If there are other critical technical details relevant to your specific approach, please include them.
-> * **Goal:** The objective is to convince the reader that you have a solid plan, not just to fill in boxes.
-
----
-
 ## 1. Team Roles & Responsibilities [You can DM the judges this information instead of including it in the repository]
 
 | Role | Name | GitHub Handle | Discord Handle
@@ -21,6 +14,7 @@
 | **GPU Acceleration PIC** (Builder) | [Name] | [@handle] | [@handle] |
 | **Quality Assurance PIC** (Verifier) | [YuChao,Hsu] | [Astor-Hsu] | [Yuchao0520] |
 | **Technical Marketing PIC** (Storyteller) | [Name] | [@handle] | [@handle] |
+| **Technical Marketing PIC** (Storyteller) | [Yi-Kai Lee] | [leon53660713] | [asdtaiwan] |
 
 ---
 
