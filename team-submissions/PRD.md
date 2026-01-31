@@ -20,17 +20,17 @@
 
 ## 2. The Architecture
 
-<!-- ### Choice of Quantum Algorithm
-* **Algorithm:** [Identify the specific algorithm or ansatz]
-    * *Example:* "Quantum Approximate Optimization Algorithm (QAOA) with a hardware-efficient ansatz."
-    * *Example:* "Variational Quantum Eigensolver (VQE) using a custom warm-start initialization."
+### Choice of Quantum Algorithm
+* **Algorithm:** Digital-Counterdiabatic Quantum Optimization (DCQO) with hybrid impulse-to-adiabatic transition and variable λ schedule
+    * We implement a modified DCQO approach that uses an impulse region during the initial optimization phase, then transitions back to adiabatic evolution near the end of the protocol.
+    * The counterdiabatic strength parameter λ is varied throughout the optimization, providing dynamic control over the balance between adiabatic and diabatic evolution.
 
-* **Motivation:** [Why this algorithm? Connect it to the problem structure or learning goals.]
-    * *Example (Metric-driven):* "We chose QAOA because we believe the layer depth corresponds well to the correlation length of the LABS sequences."
-    *  Example (Skills-driven):* "We selected VQE to maximize skill transfer. Our senior members want to test a novel 'warm-start' adaptation, while the standard implementation provides an accessible ramp-up for our members new to quantum variational methods."
-   
+* **Motivation:** This hybrid approach aims to combine the benefits of both strategies:
+    * *Impulse region:* Provides rapid exploration of the solution space early in the optimization, potentially escaping local minima more effectively than pure adiabatic methods.
+    * *Adiabatic transition:* Returns to slower, more controlled evolution at the end to ensure convergence to high-quality solutions and maintain quantum coherence during the critical final stages.
+    * The strategy is particularly suited for LABS optimization where initial exploration is crucial, but final convergence requires careful tuning.
 
-### Literature Review
+<!-- ### Literature Review
 * **Reference:** [Title, Author, Link]
 * **Relevance:** [How does this paper support your plan?]
     * *Example:* "Reference: 'QAOA for MaxCut.' Relevance: Although LABS is different from MaxCut, this paper demonstrates how parameter concentration can speed up optimization, which we hope to replicate." -->
