@@ -15,7 +15,7 @@
 
 ---
 
-## 1. Team Roles & Responsibilities [You can DM the judges this information instead of including it in the repository]
+## 1. Team Roles & Responsibilities
 
 | Role | Name | GitHub Handle | Discord Handle
 | :--- | :--- | :--- | :--- |
@@ -40,6 +40,16 @@
    
 
 ### Literature Review
+#### Classical MTS
+* **Reference:** ["New Improvements in Solving Large LABS Instances Using Massively Parallelizable Memetic Tabu Search", Zhang et al., https://arxiv.org/pdf/2504.00987]
+* **Relevance:**
+    * This paper demonstrates how classical MTS could be massively parallelized with modern GPU architecture. We will use this state-of-the-art classical algorithm for our final benchmark and comparisons.
+
+* **Reference:** ["A GitHub Archive for Solvers and Solutions of the labs problem", Bošković, https://github.com/borkob/git_labs]
+* **Relevance:**
+    * Provides known correct implementation of LABS solver that we can check our answers to and benchmark with.
+
+#### Quantum Algorithms
 * **Reference:** [Title, Author, Link]
 * **Relevance:** [How does this paper support your plan?]
     * *Example:* "Reference: 'QAOA for MaxCut.' Relevance: Although LABS is different from MaxCut, this paper demonstrates how parameter concentration can speed up optimization, which we hope to replicate."
@@ -52,33 +62,125 @@
 ### Quantum Acceleration (CUDA-Q)
 * **Strategy:** [How will you use the GPU for the quantum part?]
     * *Example:* "After testing with a single L4, we will target the `nvidia-mgpu` backend to distribute the circuit simulation across multiple L4s for large $N$."
+
  
 
 ### Classical Acceleration (MTS)
-* **Strategy:** [The classical search has many opportuntities for GPU acceleration. What will you chose to do?]
-    * *Example:* "The standard MTS evaluates neighbors one by one. We will use `cupy` to rewrite the energy function to evaluate a batch of 1,000 neighbor flips simultaneously on the GPU."
+* **Strategy:** We will follow the GPU acceleration strategy proposed by Zhang et al. in "New Improvements in Solving Large LABS Instances Using Massively Parallelizable Memetic Tabu Search". In their paper, they described a GPU architecture that achieves an up to 26x speedup over 16-core CPU implementations. Their strategy has the following advantages:
+
+1. **All-in GPU Architecture:** Instead of using the GPU merely as a calculator for energy values, the paper implements the entire Memetic Tabu Search loop as a single kernel launch. The CPU launches one kernel, and the GPU handles initialization, recombination, mutation, local search, and replacement without returning to the host. This eliminates the high latency penalty of PCIe data transfer (Host-Device switching) between iterations.
+
+2. **Two-level Parallelism:** The paper explicitly divides labor between GPU Blocks and Threads to balance exploration and exploitation. Each CUDA Thread Block runs a completely independent replica of the algorithm. Within a single block (replica), the threads work together to parallelize the computationally heavy Tabu Search.
+
+3. **Shared Memory Data Structures:** Global memory is too slow, but Shared Memory (L1) is small (e.g., 164 KB per SM on an A100). To fit the necessary data into the target ~5 KB per block (allowing more active blocks), the paper used bit vectors to represent the population and correlation matrices and sparse storage of the correlation matrix.
+
+We will plan to implement as many of the strategies they mentioned as possible, given our time constraints. # TODO: mention t4 pretest Since the paper has shown effectiveness using A100 GPUs, we will run our final benchmarks on the A100 machines in Brev.
+
+However, we notice that 
+
+We will check our implementation against known correct implementations, provided in Bošković et al.
 
 ### Hardware Targets
-* **Dev Environment:** We will use Qbraid CPUs for initial testing and code verification, and Brev T4 for initial GPU testing. Our budget will be 10 hours of testing at $0.50/hr. Total budget will be $5.
+* **Dev Environment:** We will use Qbraid CPUs for initial testing and code verification, T4 for verifying GPU path usage, and Brev L4 for initial GPU testing. Our budget will be 8 hours of testing at $0.85/hr. Total budget will be $6.9.
 * **Production Environment:** We will use the Brev A100-80GB for final benchmarks. Our budget will be 7 hours of benchmark at $1.50/hr. Total budget will be $10.50.
 
-Total amount will be $15.50. We will leave $4.50 buffer in case of extra benchmarking needed or for idle runs.
+Total amount will be $17.40. We will leave $2.60 buffer in case of extra benchmarking needed or for idle runs.
 
 ---
 
 ## 4. The Verification Plan
 **Owner:** Quality Assurance PIC
 
+### Verification goals (Definition of Done)
+We consider the solver "verified" when it satisfies **correctness**, **reproducibility**, and **GPU/CPU consistency** requirements below:
+
+- **Correctness**: Energy computation and local-search updates are correct (verified by unit + property tests), and end-to-end solvers return valid sequences with consistent energies.
+- **Reproducibility**: Given fixed random seeds and hyperparameters, the CPU reference implementation produces deterministic outputs.
+- **GPU/CPU parity (when applicable)**: GPU-accelerated components match the CPU reference on small deterministic cases (same initialization + same number of steps), and never produce invalid states (values must remain in \(\{-1, +1\}\)).
+- **Performance sanity**: GPU path actually runs on GPU (device utilization) and shows a measurable speedup over the CPU baseline on a benchmark suite (see Section 5 metrics).
+
+### Testing Environments
+We will split verification by environment to control cost and isolate GPU-specific issues:
+
+| Verification level | CPU (Qbraid) | T4 | L4 | A100 | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Unit tests (fast) | ✅ | optional | optional | ❌ | Always run on CPU in CI; GPU optional locally |
+| CPU regression tests (golden seeds) | ✅ | ✅ | ✅ | ✅ | Confirms determinism and guards against refactors |
+| GPU/CPU parity tests (small N) | ❌ | ✅ | ✅ | ✅ | Exact match expected for deterministic kernels |
+| End-to-end smoke (N~64, short budget) | ✅ | ✅ | ✅ | ✅ | Confirms no crashes + energy improves |
+| Final benchmarks (large N / many walkers) | ❌ | ❌ | optional | ✅ | Only on A100 near final submission |
+
 ### Unit Testing Strategy
-* **Framework:** pytest
-* **AI Hallucination Guardrails:** [How do you know the AI code is right?]
-    * *Example:* "We will require AI-generated kernels to pass a 'property test' (Hypothesis library) ensuring outputs are always within theoretical energy bounds before they are integrated."
+* **Framework:** `pytest`
+* **Style:** deterministic, seed-controlled tests
+* **Target modules:** CPU and GPU MTS implementation; CPU and GPU quantum LABS solver implementation
+
+#### What we unit test (CPU reference)
+We will test the smallest building blocks because GPU acceleration will reuse the same logic:
+
+- **Energy correctness** (`mts.energy`):
+  - known hand-checkable sequences (e.g., all-ones length 4)
+  - single-vs-batch consistency (vectorized vs scalar path)
+  - invariances (see "Gauge symmetries" below)
+- **Incremental update correctness** (`mts._delta_energy_for_flip`, `mts._apply_flip_in_place`):
+  - delta energy matches full recomputation for every 1-bit flip
+  - autocorrelation vector updates match recomputation after flips
+- **Genetic operators** (`mts.combine`, `mts.mutate`):
+  - crossover produces prefix/suffix from parents (cut in \([1, N-1]\))
+  - mutation probability extremes \(p=0\) (no change) and \(p=1\) (all flipped)
+- **Local search** (`mts.tabu_search`):
+  - returned best energy is non-worse than the initial sequence
+  - returned energy matches `mts.energy(best_s)`
+- **End-to-end determinism** (`mts.MTS`):
+  - repeated runs with the same seed produce identical best sequence + best energy
+
+These tests already exist in `tests/test_mts.py`, and will be extended as we add features (e.g., quantum-seeded population).
+
+#### GPU unit + parity tests (small deterministic cases)
+Because GPUs introduce additional failure modes (indexing, race conditions, integer overflow, silent wrong answers), we will add **parity tests** that compare GPU outputs to CPU outputs for small \(N\) and short runs:
+
+- **Bit validity**: GPU always returns sequences in \(\{-1, +1\}\) and finite energies.
+- **Parity on toy problems**: for \(N \in \{8, 16, 32\}\) and fixed seeds, compare:
+  - initial energy (after initialization),
+  - energy after a fixed small number of tabu steps,
+  - best energy reported by the kernel.
+
+If the final GPU kernel is intentionally stochastic / non-deterministic across architectures, parity tests will still enforce **invariants** (valid bits, monotone best-energy tracking, and energy recomputation on CPU matches the reported energy).
+
+#### AI hallucination guardrails
+We will treat AI-generated code as **untrusted** until it passes all checks below:
+
+- For any new optimization (especially GPU kernels), we add/extend a unit/parity test that would fail for common indexing or sign bugs.
+- **Property checks before merge**: invariances + delta-energy consistency must pass on random seeds for several small \(N\).
+- **Cross-implementation checks**: GPU results must be revalidated by recomputing energy on CPU from the GPU-returned bitstring.
+
+### Integration & system verification
+- **Pipeline smoke test**: run the full classical solver end-to-end (generate/init → combine/mutate → tabu search → replacement) and confirm:
+  - no crashes, correct output shapes/types,
+  - best energy is non-increasing over iterations (history sanity),
+  - result energy matches an independent recomputation.
+- **Quantum-seeded integration (when added)**:
+  - verify the quantum module produces a population of valid bitstrings,
+  - verify `mts.MTS(..., population0=...)` consumes it and improves over the initial best (or at minimum does not degrade under identical compute budget).
 
 ### Core Correctness Checks
-* **Check 1 (Symmetry):** [Describe a specific physics check]
-    * *Example:* "LABS sequence $S$ and its negation $-S$ must have identical energies. We will assert `energy(S) == energy(-S)`."
-* **Check 2 (Ground Truth):**
-    * *Example:* "For $N=3$, the known optimal energy is 1.0. Our test suite will assert that our GPU kernel returns exactly 1.0 for the sequence `[1, 1, -1]`."
+We will have the following correctness checks for our LABS solvers.
+
+1. **Comparison to known references**
+    * **Barker sequences**: for \(N=7, 11, 13\), verify our energy and autocorrelation calculations reproduce the expected near-perfect behavior (for Barker lengths where applicable) and match known reference energies.
+    * **Exhaustive optimum for small N**: for small \(N\) (e.g., \(N \le 25\) where feasible), compute the exact optimum energy by exhaustive search and confirm our solver reaches it reliably (or at least never reports an energy below the proven optimum).
+    * **External benchmark suite**: Bošković et al. provide reference results; we will compare energies and best-known sequences for basic correctness and regression checks.
+
+2. **Physics / invariance checks (Ising gauge symmetries)**
+    * **Gauge symmetries**: for any sequence \(S\), the following transformations must yield the exact same energy:
+        * Reversal: \(s_1, s_2, \dots, s_N \to s_N, s_{N-1}, \dots, s_1\)
+        * Inversion: \(s_i \to -s_i\)
+        * Alternating inversion: \(s_i \to (-1)^i s_i\)
+    * **Magnetization sanity** (manual / exploratory): as \(N\) grows, we expect magnetization (average spin) to be near 0 for good solutions.
+    * **Correlation distribution sanity** (manual / exploratory): the autocorrelation values over distances should be centered around 0 without obvious structure.
+
+For initial correctness checks, we will use both numerical and non-numerical tests (magnetization/correlation sanity). For large \(N\), we will primarily rely on automated numerical tests (reference comparisons, invariances, parity checks).
+
 
 ---
 
@@ -107,7 +209,7 @@ Total amount will be $15.50. We will leave $4.50 buffer in case of extra benchma
     * *Example:* "We will develop entirely on Qbraid (CPU) until the unit tests pass. We will then spin up a cheap L4 instance on Brev for porting. We will only spin up the expensive A100 instance for the final 2 hours of benchmarking."
     * *Example:* "The GPU Acceleration PIC is responsible for manually shutting down the Brev instance whenever the team takes a meal break."
 
-## 7. Scheduling
+## 7. Detailed Tasking and Scheduling
 
 - classical algs schedule (Chengyi)
     -
@@ -146,7 +248,10 @@ Total amount will be $15.50. We will leave $4.50 buffer in case of extra benchma
     * fill in details
     * practice presentation
 
-2:30 Finish all coding. Start final benchmarking. Begin working on presentation material.
-8:00 Finish benchmarking, start final work on presentations.
-9:00 Finish writing presentation. Start practicing for presentation. Final checks for code styling and provide documentation for any unclear parts.
-9:50 Submit final submission.
+- 2:30 Finish all coding. Start final benchmarking. Begin working on presentation material.
+
+- 8:00 Finish benchmarking, start final work on presentations.
+
+- 9:00 Finish writing presentation. Start practicing for presentation. Final checks for code styling and provide documentation for any unclear parts.
+
+- 9:50 Final submission.
