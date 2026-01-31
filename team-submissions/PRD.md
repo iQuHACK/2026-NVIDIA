@@ -31,13 +31,28 @@
     * The strategy is particularly suited for LABS optimization where initial exploration is crucial, but final convergence requires careful tuning.
 
 ### Literature Review
-* **Reference:** "New Improvements in Solving Large LABS Instances Using Massively Parallelizable Memetic Tabu Search" by Zhiwei Zhang, Jiayu Shen, Niraj Kumar, and Marco Pistoia (2025) - [https://arxiv.org/html/2504.00987v2](https://arxiv.org/html/2504.00987v2)
+* **Reference 1:** "New Improvements in Solving Large LABS Instances Using Massively Parallelizable Memetic Tabu Search" by Zhiwei Zhang, Jiayu Shen, Niraj Kumar, and Marco Pistoia (2025) - [https://arxiv.org/html/2504.00987v2](https://arxiv.org/html/2504.00987v2)
 * **Relevance:** This paper provides the classical benchmark for our quantum-classical hybrid approach. It demonstrates:
     * State-of-the-art classical MTS implementation achieving up to 26× speedup on GPU compared to CPU implementations
     * Best-known LABS solutions for N=92-120, with new merit factor records for 16 problem sizes
     * Efficient GPU parallelization strategies (block-level and thread-level) that inform our classical acceleration design
     * Evidence that general-purpose solvers outperform skew-symmetry-constrained methods, validating our unrestricted quantum search approach
     * Serves as the performance baseline we aim to match or exceed with our DCQO + GPU-accelerated MTS hybrid approach
+
+* **Reference 2:** "Quantum coherence and counterdiabatic quantum computing" by Raziel Huerta-Ruiz, Maximiliano Araya-Gaete, Diego Tancara, Enrique Solano, Nancy Barraza, and Francisco Albarrán-Arriagada (2025) - [https://arxiv.org/html/2504.17642v1](https://arxiv.org/html/2504.17642v1)
+* **Relevance:** This paper provides the theoretical foundation for our impulse-to-adiabatic transition strategy:
+    * Defines the impulse regime condition: max[λ̇(t)/Δ] ≫ 1, where Δ is the energy gap
+    * Shows that in the impulse regime, counterdiabatic (CD) terms dominate and produce high quantum coherence, leading to better performance
+    * Demonstrates that higher-order CD approximations generate more coherence and energy fluctuations in the impulse regime, enabling faster evolution
+    * Explains why pure adiabatic evolution becomes necessary at the end: as λ̇(t) naturally decreases (by the fundamental theorem of calculus) and the energy gap Δ shrinks near the target state, CD dominance drops
+    * Our strategy: Start in the impulse regime with CD terms for rapid exploration, then transition to pure adiabatic evolution by reintroducing the adiabatic Hamiltonian in the final stretch to maintain coherent evolution while preserving the hardware/time efficiency DCQO provides
+
+* **Reference 3:** "Digitized counterdiabatic quantum optimization" by Narendra N. Hegade, Xi Chen, and Enrique Solano (2022) - Phys. Rev. Research 4, L042030
+* **Relevance:** Establishes the DCQO framework that we build upon:
+    * Introduces digitized implementation of counterdiabatic driving for gate-based quantum computers
+    * Provides the nested commutator expansion method for approximating the adiabatic gauge potential (AGP)
+    * Demonstrates DCQO's applicability to combinatorial optimization problems
+    * Forms the basis for our variable λ schedule and hybrid impulse-adiabatic protocol
 
 ---
 
