@@ -13,7 +13,7 @@
 | Role | Name | GitHub Handle | Discord Handle
 | :--- | :--- | :--- | :--- |
 | **Project Lead** (Architect) | Jiun-Cheng Jiang | Jim137 | mrjiang |
-| **GPU Acceleration PIC1** (Builder) | [Name] | [@handle] | [@handle] |
+| **GPU Acceleration PIC1** (Builder) | Kuo-Chung Peng | MatthewPeng57 | player256_27165 |
 | **GPU Acceleration PIC2** (Builder) | Chun-Hua Lin | Kanadedaisuki | howardnbsm |
 | **Quality Assurance PIC** (Verifier) | YuChao Hsu | Astor-Hsu | Yuchao0520 |
 | **Technical Marketing PIC** (Storyteller) | Yi-Kai Lee | leon53660713 | asdtaiwan |
@@ -149,6 +149,6 @@ To validate both the physical fidelity of the LABS objective and the correctness
 ## 6. Resource Management Plan
 **Owner:** GPU Acceleration PIC 
 
-* **Plan:** [How will you avoid burning all your credits?]
-    * *Example:* "We will develop entirely on Qbraid (CPU) until the unit tests pass. We will then spin up a cheap L4 instance on Brev for porting. We will only spin up the expensive A100 instance for the final 2 hours of benchmarking."
+* **Plan:** 
+    * We will develop entirely on Qbraid (CPU) until the unit tests pass. Then, we will only use Brev for POC, before moving to our local machine for the final benchmarking.
     * *Example:* "The GPU Acceleration PIC is responsible for manually shutting down the Brev instance whenever the team takes a meal break."
