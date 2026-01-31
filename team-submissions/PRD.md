@@ -142,8 +142,8 @@ To validate both the physical fidelity of the LABS objective and the correctness
 * **Metric 3 (Scalability):** Successfully execute GQE-MTS for N =35,40,45.
 * **Metric 4 (Quantum Advantage):** Ｑuantum seed demonstrates advantages over random initialization.
 ### Visualization Plan
-* **Plot 1:** Solution Time as a Function of Problem Size (N) Across CPU and GPU Architectures
-* **Plot 2:** Convergence Rate (Energy vs Iteration) for Quantum vs Random vs Classical
+* **Plot 1:** Solution Time as a Function of Problem Size (N) Across CPU and GPU Architectures.
+* **Plot 2:** Convergence Rate (Energy vs Iteration) for Quantum vs Random vs Classical.
 
 ---
 
