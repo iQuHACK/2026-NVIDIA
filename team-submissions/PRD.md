@@ -133,7 +133,7 @@ To validate both the physical fidelity of the LABS objective and the correctness
 **Owner:** Technical Marketing PIC
 
 ### Agentic Workflow
-* **IDE:**VS Code
+* **IDE:** VS Code
 
 
 ### Success Metrics
