@@ -14,7 +14,7 @@
 | :--- | :--- | :--- | :--- |
 | **Project Lead** (Architect) | Jiun-Cheng Jiang | Jim137 | mrjiang |
 | **GPU Acceleration PIC1** (Builder) | [Name] | [@handle] | [@handle] |
-| **GPU Acceleration PIC2** (Builder) | [Chun-Hua Lin] | [Kanadedaisuki] | [howardnbsm] |
+| **GPU Acceleration PIC2** (Builder) | Chun-Hua Lin | Kanadedaisuki | howardnbsm |
 | **Quality Assurance PIC** (Verifier) | YuChao Hsu | Astor-Hsu | Yuchao0520 |
 | **Technical Marketing PIC** (Storyteller) | Yi-Kai Lee | leon53660713 | asdtaiwan |
 
@@ -59,7 +59,7 @@
 
 ### Hardware Targets
 * **Dev Environment:** Qbraid (CPU) for logic, Brev L4 for initial GPU testing.
-* **Production Environment:** 8 nodes with 8x H100-80GB GPUs per node for final N=38 benchmarks.
+* **Production Environment:**  nodes with 4x H100-80GB GPUs per node for final N=38 benchmarks.
 
 ---
 
