@@ -91,6 +91,24 @@
 
 ## 6. Resource Management Plan
 
-<!-- * **Plan:** [How will you avoid burning all your credits?]
-    * *Example:* "We will develop entirely on Qbraid (CPU) until the unit tests pass. We will then spin up a cheap L4 instance on Brev for porting. We will only spin up the expensive A100 instance for the final 2 hours of benchmarking."
-    * *Example:* "The GPU Acceleration PIC is responsible for manually shutting down the Brev instance whenever the team takes a meal break." -->
+### The $20 Budget Strategy
+
+**Optimal GPU Selection:**
+
+| Phase | GPU | Hourly Cost | Purpose | Hours | Budget |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Dev & Debug | L4 | $0.60-0.87 | Test quantum circuits (N≤30), verify MTS logic | 5 | $4.00 |
+| Quantum Scale-Up | A100 40GB | $2.00-2.50 | Test quantum algorithm N=35-40 | 2 | $5.00 |
+| MTS Acceleration | A100 40GB | $2.00-2.50 | Parallelize classical MTS, benchmark N>50 | 3 | $7.00 |
+| Final Benchmark | A100 80GB | $3.00-4.00 | Production runs for presentation plots | 1 | $3.50 |
+| Buffer | - | - | Handle failures, re-runs | - | $0.50 |
+| **Total** | | | | **11** | **$20.00** |
+
+**Anti-Zombie Protocol (Resource Protection Plan):**
+1. **Timer Alarms:** Set 30-minute timer alarms during active development sessions
+2. **Auto-Shutdown:** Use Brev auto-shutdown feature (max 2-hour session without activity)
+3. **Test-Then-Migrate:** Test all code on L4 before migrating to A100 instances
+4. **Session Planning:** Pre-commit to A100 session plan with written checklist of experiments before spinning up
+5. **Active Monitoring:** GPU Acceleration PIC monitors Brev dashboard every hour during active sessions
+6. **Team Coordination:** All team members must announce in Discord before spinning up any GPU instance and when shutting it down
+7. **Meal Break Protocol:** Mandatory instance shutdown during team meal breaks or extended discussions
