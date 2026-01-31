@@ -59,7 +59,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from qkan import QKAN
 
-__all__ = ["build_gpt2_model"]
+__all__ = ["GPT2LMHeadModel"]
 
 
 class CausalSelfAttention(nn.Module):
