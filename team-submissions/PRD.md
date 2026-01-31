@@ -25,7 +25,15 @@
 ### Choice of Quantum Algorithm
 * **Algorithm:** Bias-Field Digitized Counterdiabatic Quantum Optimization (BF-DCQO)
 
-* **Motivation:** We chose BF_DCQO because our primary goal is to try and reduce the end-to-end time to solution (TTS) of the QE-MTS as the original paper discusses how this is a drawback of the hybrid model compared to the purely classical model. The original paper discussed how TTS can be improved by better initialization and explicitly proposes exporing "adaptive DCQO variants" to increase popilation diversity and lower TTS. Though the authors seem to have tested BF-DCQO and QAOA alone, and MTS with DCQO, they have not explicitly testing MTS with BF-DCQO. From an August 2025 paper on BF-DCQO (listed below), we learened that BF-DCQO runs DCQO iteratively while updating bias diels based on peior samples which can concentratesampling probability and they explicitly mention it is applicable to the LABS problem.
+* **Motivation:** We chose BF_DCQO because our primary goal is to try and reduce the end-to-end time to solution (TTS) of the QE-MTS. The original paper discusses how this is a drawback of the hybrid model compared to the purely classical model. It discussed how TTS can be improved by better initialization and explicitly proposes exporing "adaptive DCQO variants" to increase population diversity and lower TTS. Though the authors seem to have tested BF-DCQO and QAOA alone, and MTS with DCQO, they have not explicitly testing MTS with BF-DCQO. From an August 2025 paper on BF-DCQO (listed below), we learened that BF-DCQO runs DCQO iteratively while updating bias diels based on peior samples which can concentratesampling probability and they explicitly mention it is applicable to the LABS problem.
+
+Less "safe," but a potentially interesting path, is to modify one of the three core components of the QE-MTS algorithm implemented in Phase 1:
+ 1. generation of the initial seed population for MTS,
+ 2. exploration of the energy landscape (the “genetic search” stage), and
+ 3. the local decision rule used to select candidate solutions for inclusion in the population.
+
+Specifically for stage (2), global exploration of the energy landscape, alternative metaheuristics including simulated annealing, parallel tempering, population-based Monte Carlo, differential evolution, or estimation-of-distribution algorithms may serve as substitutes for the existing genetic-style search. Finally, the local decision-making step (3) could be altered by replacing the greedy acceptance rule with strategies such as Metropolis–Hastings updates, threshold accepting, tabu-based neighborhood selection, or reinforcement-learning–guided move selection.
+Exploring these alternatives, each drawn from the same functional category as the original component, would help isolate which aspects of QE-MTS provide the largest performance gains and may reveal more effective hybrid classical–quantum combinations for future work.
    
 
 ### Literature Review
@@ -39,17 +47,22 @@
     * Provides known correct implementation of LABS solver that we can check our answers to and benchmark with.
 
 #### Quantum Algorithms
-* **Reference:** ["Bias-field digitized counterdiabatic quantum algorithm for higher-order binary optimization", Romero et al., https://www.nature.com/articles/s42005-025-02270-3#:~:text=In%20this%20work%2C%20we%20develop,54%2C55%2C%20among%20others.
+* **Reference:** ["Bias-field digitized counterdiabatic quantum algorithm for higher-order binary optimization", Romero et al., https://arxiv.org/pdf/2409.04477.
 ]
 * **Relevance:** 
-  * This paper discusses how to (and the potential advantages of) solving higher order binary optimization problems, explicitly mentioning the LABS problem, using BF-DCQO. This is our main inpiration paper for using BF-DCQO and its discussion of the math behind BF-DCQO will be extremely helpful to implimenting it.
+  * This paper discusses how to solve higher order binary optimization problems and their potential advantages, explicitly mentioning the LABS problem, using BF-DCQO. This is our main inspiration paper for using BF-DCQO, and its discussion of the math behind BF-DCQO will be extremely helpful to implementing it.
 
-* **Reference:** ["BBias-field Digitized Counterdiabatic Quantum Optimization", Cadavid et al., https://journals.aps.org/prresearch/abstract/10.1103/PhysRevResearch.7.L022010.
+* **Reference:** ["Bias-field Digitized Counterdiabatic Quantum Optimization", Cadavid et al., https://journals.aps.org/prresearch/abstract/10.1103/PhysRevResearch.7.L022010.
 ]
 * **Relevance:** 
-  * This paper futher discussed BF-DCQO and how to impliment it and will be was useful in understanding its advantages explitily comparing it to traditional DCQO. It discussed how this method achieved scaling immprovements in ground state success probabilities and explicitly applies this to the ising spin-glass model. Though this talks about a purely quantum algorithmic approach, we hope to build a hybrid model off it.
+  * This paper futher discussed BF-DCQO and how to implement it. It was useful in understanding the algorithm's advantages explicitly comparing it to traditional DCQO. It discussed how this method achieved scaling immprovements in ground state success probabilities, and explicitly applies the proposed algorithm to the Ising spin-glass model. Though this talks about a purely quantum algorithmic approach, we hope to build a hybrid model off it.
 
-
+* **Alternative approaches references**
+  * Glover & Laguna, Tabu Search, Springer (1997)
+  * Kirkpatrick et al., “Optimization by Simulated Annealing,” Science (1983)
+  * Holland, Adaptation in Natural and Artificial Systems (1975)
+  * Farhi et al., “A Quantum Approximate Optimization Algorithm,” arXiv:1411.4028
+  * Talbi, Metaheuristics: From Design to Implementation, Wiley (2009)
 
 ---
 
