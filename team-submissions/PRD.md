@@ -60,9 +60,7 @@
 **Owner:** Quality Assurance PIC
 
 ### Unit Testing Strategy
-* **Framework:** [e.g., `pytest`, `unittest`]
-* **AI Hallucination Guardrails:** [How do you know the AI code is right?]
-    * *Example:* "We will require AI-generated kernels to pass a 'property test' (Hypothesis library) ensuring outputs are always within theoretical energy bounds before they are integrated."
+* **Framework:** [ruff, mypy]
 
 ### Core Correctness Checks
 ### Physical and Algorithmic Correctness Checks
@@ -102,8 +100,16 @@ To validate both the physical fidelity of the LABS objective and the correctness
     The evaluation kernel must reproduce these exact values without numerical deviation.
   * **Implementation:**  
     The test suite performs direct comparisons against analytically derived energies.
+    
+* **Check 3 (Index and Correlation Structure Validation):**
+  * **Principle:**  
+    The LABS energy computation relies on a deterministic generation of correlation indices.
+  * **Test:**  
+    For fixed system sizes (e.g., $N=6$ and $N=8$), the number and structure of generated correlation groups must match theoretical expectations.
+  * **Assertion:**  
+    Index generation outputs are checked against known reference patterns.
 
-* **Check 3 (Sequence Reversal Symmetry):**
+* **Check 4 (Sequence Reversal Symmetry):**
   * **Principle:**  
     The LABS objective depends only on pairwise correlations at fixed distances and is invariant under sequence reversal.
   * **Test:**  
@@ -118,23 +124,7 @@ To validate both the physical fidelity of the LABS objective and the correctness
     assert energy(S) == energy(S[::-1])
     ```
 
-* **Check 4 (Index and Correlation Structure Validation):**
-  * **Principle:**  
-    The LABS energy computation relies on a deterministic generation of correlation indices.
-  * **Test:**  
-    For fixed system sizes (e.g., $N=6$ and $N=8$), the number and structure of generated correlation groups must match theoretical expectations.
-  * **Assertion:**  
-    Index generation outputs are checked against known reference patterns.
 
-* **Check ㄓ (Quantum Sampling Advantage Sanity Test):**
-  * **Principle:**  
-    Quantum-assisted sampling should not perform systematically worse than uniform random sampling.
-  * **Test:**  
-    The minimum energy obtained from quantum sampling is compared against a random baseline.
-  * **Assertion:**  
-    \[
-    E_{\text{quantum}}^{\min} \le E_{\text{random}}^{\min}.
-    \]
 
 
 ---
