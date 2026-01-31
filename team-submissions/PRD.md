@@ -76,9 +76,9 @@ To validate both the physical fidelity of the LABS objective and the correctness
   * **Test:**  
     For any sampled spin sequence $S$, its inverted configuration $-S$ must yield the same energy.
   * **Assertion:**  
-    \[
+    $
     E(S) = E(-S).
-    \]
+    $
   * **Implementation:**  
     We explicitly evaluate both configurations and enforce
     ```python
