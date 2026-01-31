@@ -69,16 +69,12 @@ To validate both the physical fidelity of the LABS objective and the correctness
 * **Check 1 (Global Spin-Flip Invariance):**
   * **Principle:**  
     The LABS Hamiltonian is invariant under a global inversion of all spins,
-    \[
-    S_i \rightarrow -S_i \quad \forall i,
-    \]
+    $S_i \rightarrow -S_i \quad \forall i,$
     leading to a $\mathbb{Z}_2$ symmetry of the energy landscape.
   * **Test:**  
     For any sampled spin sequence $S$, its inverted configuration $-S$ must yield the same energy.
   * **Assertion:**  
-    \[
-    E(S) = E(-S).
-    \]
+    $E(S) = E(-S).$
   * **Implementation:**  
     We explicitly evaluate both configurations and enforce
     ```python
@@ -90,11 +86,11 @@ To validate both the physical fidelity of the LABS objective and the correctness
     For small sequence lengths, the LABS energy can be computed analytically or via exhaustive enumeration, providing exact reference values.
   * **Test:**  
     For $N=3$, the energies of representative sequences are known:
-      $$
+      $
       E([1,1,1]) = 5,\quad
       E([1,1,-1]) = 1,\quad
       E([1,-1,1]) = 5.
-      $$
+      $
   * **Assertion:**  
     The evaluation kernel must reproduce these exact values without numerical deviation.
   * **Implementation:**  
@@ -114,9 +110,7 @@ To validate both the physical fidelity of the LABS objective and the correctness
   * **Test:**  
     For any sequence $S$, its reversed sequence $S^{\mathrm{rev}}$ must yield the same energy.
   * **Assertion:**  
-    \[
-    E(S) = E(S^{\mathrm{rev}}).
-    \]
+    $E(S) = E(S^{\mathrm{rev}}).$
   * **Implementation:**  
     Random sequences are reversed and validated via
     ```python
