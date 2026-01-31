@@ -133,14 +133,14 @@ To validate both the physical fidelity of the LABS objective and the correctness
 **Owner:** Technical Marketing PIC
 
 ### Agentic Workflow
-* **Plan:** [How will you orchestrate your tools?]
-    * *Example:* "We are using Cursor as the IDE. We have created a `skills.md` file containing the CUDA-Q documentation so the agent doesn't hallucinate API calls. The QA Lead runs the tests, and if they fail, pastes the error log back into the Agent to refactor."
+* **IDE:**VS Code
+
 
 ### Success Metrics
-* **Metric 1 (Approximation):** [e.g., Target Ratio > 0.9 for N=30]
-* **Metric 2 (Speedup):** [e.g., 10x speedup over the CPU-only Tutorial baseline]
-* **Metric 3 (Scale):** [e.g., Successfully run a simulation for N=40]
-
+* **Metric 1 (Approximation):** [Target Ratio > 0.9 for N=30]
+* **Metric 2 (Speedup):** [Achieve 10× speedup for classical MTS phase]
+* **Metric 3 (Scalability):** [Successfully execute GQE-MTS for N =35,40,45]
+* **Metric 4 (Quantum Advantage):** [Hybrid Quantum seed initialization outperforms random initialization ]
 ### Visualization Plan
 * **Plot 1:** [e.g., "Time-to-Solution vs. Problem Size (N)" comparing CPU vs. GPU]
 * **Plot 2:** [e.g., "Convergence Rate" (Energy vs. Iteration count) for the Quantum Seed vs. Random Seed]
