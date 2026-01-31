@@ -6,7 +6,8 @@ quantum algorithm on small instances.
 This mirrors standard practice in quantum-classical algorithm validation where 
 invariants and small-instance exact checks are used as the ground-truth proxy 
 when a solution key is not available.” '''
-# CELL: LABS energy function (canonical)
+# symValidator.py
+#LABS energy function (canonical)
 import numpy as np
 
 def labs_energy(s):
@@ -21,7 +22,7 @@ def labs_energy(s):
 
 
 # brute force enumeration for small N
-import itertools, pandas as pd
+import itertools
 
 def brute_force_labs(N):
     energies = {}
@@ -29,14 +30,6 @@ def brute_force_labs(N):
         energies[bits] = labs_energy(bits)
     # return sorted list of (sequence, energy)
     return sorted(energies.items(), key=lambda t: t[1])
-
-# run for N=5
-N = 5
-bf = brute_force_labs(N)
-print(f"Found {len(bf)} sequences; best energy = {bf[0][1]}")
-# show top few
-for seq, e in bf[:6]:
-    print(seq, e)
 
 
 # symmetry positive tests (must pass)
@@ -51,27 +44,11 @@ def test_flip_and_reverse(s):
 
 # test on random and canonical sequences
 import random
-for N in [3,4,5,6]:
-    for _ in range(10):
-        s = [random.choice([-1,1]) for _ in range(N)]
-        test_global_flip(s)
-        test_reversal(s)
-        test_flip_and_reverse(s)
-print("Positive symmetry tests passed on random samples.")
-
 #negative tests to catch incorrect assumptions (eg, accidental cyclic autocor)
 def cyclic_rotate(s, r):
     """Cyclic rotate right by r"""
     r = r % len(s)
     return s[-r:] + s[:-r]
-
-# pick a random sequence and check rotation changes energy (for linear LABS)
-
-s = [1, -1, 1, 1, -1]  # example
-E_orig = labs_energy(s)
-E_rot = labs_energy(cyclic_rotate(s, 1))
-print("orig:",s,"E=",E_orig, "rotated E=", E_rot)
-assert E_orig != E_rot, "Rotation did not change energy check whether you accidentally implemented circular autocor!"
 
 # cross-check classical vs quantum (small N)
 # integrate after phase 1 is completed
@@ -102,14 +79,6 @@ def dihedral_orbit(s):
     ]
     return {tuple(op(s)) for op in ops}
 
-# example
-s = [1,-1,1,1]
-#get all transformations
-orbit = dihedral_orbit(s)
-print("orbit size:", len(orbit))
-#print energy, should be the same
-for seq in orbit:
-    print(seq, labs_energy(seq))
 
 # CELL: small test suite runner
 def run_all_tests():
@@ -127,5 +96,41 @@ def run_all_tests():
     print("All tests passed.")
     
 # Run the tests
-run_all_tests()
+if __name__ == "__main__":
+    # run for N=5
+    N = 5
+    bf = brute_force_labs(N)
+    print(f"Found {len(bf)} sequences; best energy = {bf[0][1]}")
+    # show top few
+    for seq, e in bf[:6]:
+        print(seq, e)
 
+    # symmetry smoke tests on random sequences
+    for N in [3, 4, 5, 6]:
+        for _ in range(10):
+            s = [random.choice([-1, 1]) for _ in range(N)]
+            test_global_flip(s)
+            test_reversal(s)
+            test_flip_and_reverse(s)
+    print("Positive symmetry tests passed on random samples.")
+
+    # pick a random sequence and check rotation changes energy (for linear LABS)
+    s = [1, -1, 1, 1, -1]  # example
+    E_orig = labs_energy(s)
+    E_rot = labs_energy(cyclic_rotate(s, 1))
+    print("orig:", s, "E=", E_orig, "rotated E=", E_rot)
+    assert E_orig != E_rot, (
+        "Rotation did not change energy check whether you accidentally implemented circular autocor!"
+    )
+
+    # dihedral orbit demo
+    s = [1, -1, 1, 1]
+    # get all transformations
+    orbit = dihedral_orbit(s)
+    print("orbit size:", len(orbit))
+    # print energy, should be the same
+    for seq in orbit:
+        print(seq, labs_energy(seq))
+
+    # Run the tests
+    run_all_tests()
