@@ -87,8 +87,8 @@ __global__ void tabu_kernel(int N, int iterations, int8_t* d_pop, curandState* s
     int* s_tabu = (int*)&s_corr[MAX_N];
 
     __shared__ long long s_cur_e; __shared__ long long s_best_e;
-    __shared__ long long s_warp_d[4]; __shared__ int s_warp_i[4];
-    __shared__ bool s_upd;
+    __shared__ long long s_warp_d[8]; 
+    __shared__ int s_warp_i[8];    __shared__ bool s_upd;
 
     int bid = blockIdx.x; int tid = threadIdx.x;
     curandState rng = states[bid];
@@ -132,7 +132,10 @@ __global__ void tabu_kernel(int N, int iterations, int8_t* d_pop, curandState* s
         __syncthreads();
         if (tid == 0) {
             long long bd = LLONG_MAX; int bp = -1;
-            for (int w = 0; w < 4; w++) if (s_warp_d[w] < bd) { bd = s_warp_d[w]; bp = s_warp_i[w]; }
+            // INCREASE LOOP LIMIT FROM 4 TO 8 (or blockDim.x / 32)
+            for (int w = 0; w < (blockDim.x >> 5); w++) { 
+                 if (s_warp_d[w] < bd) { bd = s_warp_d[w]; bp = s_warp_i[w]; }
+            }
             s_warp_i[0] = bp; 
             if (bp != -1) {
                 s_warp_i[1] = s_seq[bp]; s_cur_e += bd;
@@ -201,7 +204,7 @@ int main(int argc, char** argv) {
     double total_wall_time = 0;
     unsigned long long total_moves = 0;
 
-    for (int N = 3; N <= 66; N++) {
+    for (int N = 3; N <= 64; N++) {
         int target_e = TARGETS[N];
         long long current_best = LLONG_MAX;
         
