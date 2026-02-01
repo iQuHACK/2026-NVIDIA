@@ -683,8 +683,12 @@ if __name__ == "__main__":
 
     print(f"QUBIT REUSE ANALYSIS")
     # Track qubit usage
+    # The usage_stats is already computed inside quantum_metrics
+    if quantum_metrics.get('qubit_efficiency') is not None:
+        print(f"Qubit efficiency: {quantum_metrics['qubit_efficiency']:.2%}")
+
+    # Track qubit usage separately for additional analysis
     usage_stats = track_qubit_usage(N, G2, G4, n_steps)
-    print(f"Qubit efficiency: {usage_stats['qubit_efficiency']:.2%}")
     print(f"Most active qubit used {usage_stats['max_active_qubit']} times")
     print(f"Average qubit used {usage_stats['average_active_time']:.2f} times")
 
