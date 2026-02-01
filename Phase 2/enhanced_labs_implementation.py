@@ -344,6 +344,9 @@ def deduplicate_population(population: List[List[int]],
 
     return unique_pop, stats
 
+def mutate(sequence: List[int], p_mut: float = 0.1) -> List[int]:
+    """Mutate a sequence with given probability per bit."""
+    return [1 - s if random.random() < p_mut else s for s in sequence]
 
 # ============================================================================
 # STEP 4: Improved Quantum Population Sampling
@@ -606,17 +609,6 @@ def _hybrid_sampling(counts: Dict, N: int, pop_size: int) -> List[List[int]]:
             seen.add(tuple(child))
 
     return population[:pop_size]
-
-
-def
-
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-def mutate(sequence: List[int], p_mut: float = 0.1) -> List[int]:
-    """Mutate a sequence with given probability per bit."""
-    return [1 - s if random.random() < p_mut else s for s in sequence]
-
 
 # ============================================================================
 # MAIN EXECUTION
