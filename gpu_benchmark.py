@@ -26,19 +26,15 @@ def run_benchmark():
     writer = csv.writer(csv_file)
     writer.writerow(["N", "Best E", "Conv. Time", "Total Time", "Merit F.", "Generations", "Sequence"])
 
-    try:
-        for N in range(1,40):
-            # Run ./labs_gpu <N>
+    for N in range(1,40):
+        # Run ./labs_gpu <N>
             cmd = [str(classical_dir / "labs_gpu"), str(N)]
-            
-            # Capture output
-            try:
-                # Set a timeout just in case
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-                output = proc.stdout
-            except subprocess.TimeoutExpired:
-                print(f"N={N}: TIMEOUT")
-                continue
+        
+        # Capture output
+        try:
+            # Set a timeout just in case
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            output = proc.stdout
             
             # Parse Output
             best_e_match = re.search(r"Best Energy Found: (-?\d+)", output)
@@ -106,8 +102,7 @@ def run_benchmark():
         except Exception as e:
             print(f"{N:<5} ERROR: {e}")
             
-    finally:
-        csv_file.close()
+    csv_file.close()
 
 if __name__ == "__main__":
     run_benchmark()
