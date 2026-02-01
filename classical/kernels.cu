@@ -271,9 +271,17 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
     // Initialize Tabu Search State
     // Init vectorC for child (Parallel)
     // Re-compute energy from scratch for child
-    int current_energy =
-        compute_energy_parallel(N, child_seq, vectorC, tid, bdim);
-    int best_child_energy = current_energy; // Track best in this LS
+    int local_E = compute_energy_parallel(N, child_seq, vectorC, tid, bdim);
+
+    // Reduce to get full energy
+    if (tid == 0)
+      shared_reduction[0] = 0;
+    __syncthreads();
+    atomicAdd(&shared_reduction[0], local_E);
+    __syncthreads();
+
+    int current_energy = shared_reduction[0]; // All threads get full energy
+    int best_child_energy = current_energy;   // Track best in this LS
 
     // Copy child to best_tabu_seq (Thread 0)
     // Parallel copy
@@ -328,23 +336,10 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
       // Reduction to find global best for this iteration
       // We need minimum delta across threads
-      // Shared Mem Reduction
-      // Map tid -> (delta, p)
-      // Use shared_mem part for reduction?
-      // Reuse pop_energies or alloc space
-      // Let's assume we have space.
-      // shared_reduction array of size blockDim
-      // But we defined shared_mem tightly?
-      // Reuse tabu_list? No. Reuse vectorC? No.
-      // Pop Size K=100. We can reuse population energy buffer?
-      // pop_energies has size 100. If blockDim <= 100 ok. if 128 not enough.
-      // But we can allocate explicit reduction buffer.
-      // For now, let's use shuffle if architecture >= sm_30 (A100 is sm_80)
-
+      // Warp shuffle reduction
       int best_delta_val = local_best_delta;
       int best_p_val = local_best_p;
 
-      // Warp shuffle reduction
       for (int offset = 16; offset > 0; offset /= 2) {
         int other_delta = __shfl_down_sync(0xFFFFFFFF, best_delta_val, offset);
         int other_p = __shfl_down_sync(0xFFFFFFFF, best_p_val, offset);
@@ -356,7 +351,6 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
       }
 
       // Shared memory for block reduction (across warps)
-      // If blockDim > 32
       __shared__ int warp_deltas[32]; // Max 32 warps for 1024 threads
       __shared__ int warp_ps[32];
 
@@ -370,7 +364,6 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
       if (warp_id == 0) {
         // First warp reduces the warp_deltas
-        // Only threads 0..num_warps-1 active
         int num_warps = (bdim + 31) / 32;
         if (tid < num_warps) {
           best_delta_val = warp_deltas[tid];
@@ -393,7 +386,6 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
         if (tid == 0) {
           // best_p_val is the winner
-          // Store/Broadcast?
           shared_reduction[0] = best_p_val;
           shared_reduction[1] = best_delta_val;
         }
@@ -412,9 +404,17 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
         __syncthreads();
 
+        // Update state on ALL threads
+        current_energy += move_delta;
+
+        bool improved = false;
+        if (current_energy < best_child_energy) {
+          best_child_energy = current_energy;
+          improved = true;
+        }
+
         if (tid == 0) {
           flip_bit(child_seq, move_p);
-          current_energy += move_delta;
 
           // Update Tabu Tenure
           // Paper: [0.1 L, 0.12 L] + current_iter
@@ -422,20 +422,14 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
           tabu_list[move_p] = iter + tenure;  // Use logic from paper
 
           // Check Best
-          if (current_energy < best_child_energy) {
-            best_child_energy = current_energy;
+          if (improved) {
             // Update best_tabu_seq
-            // We could copy now or just defer until end if we kept track?
-            // Paper says update Best Found locally.
-            // Copy child -> best_tabu_seq
-            // Simple: Sequential copy by thread 0
             for (int j = 0; j < ints_per_seq; ++j)
               best_tabu_seq[j] = child_seq[j];
           }
         }
       }
       __syncthreads();
-
       // DEBUG: Check for drift
       // Only check periodically to allow running somewhat fast (e.g. every 10
       // steps or if iter < 5) Or if N is small, check always.
