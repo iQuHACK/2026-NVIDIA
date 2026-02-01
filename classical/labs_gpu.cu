@@ -1,4 +1,5 @@
 #include "kernels.cuh"
+#include <algorithm>
 #include <chrono>
 #include <cuda_runtime.h>
 #include <iomanip>
