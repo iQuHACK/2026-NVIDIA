@@ -38,7 +38,7 @@ else:
 # Disable this section for non-deterministic behavior
 import os
 
-import cudaq_solvers as solvers
+
 import torch
 from cudaq import spin
 from lightning.fabric.loggers import CSVLogger
@@ -179,7 +179,7 @@ cfg.save_trajectory = False
 cfg.verbose = True
 
 # Run GQE
-minE, best_ops = solvers.gqe(cost, op_pool, max_iters=5, ngates=3, config=cfg)
+minE, best_ops = src.GQEMTS.gqe(cost, op_pool, max_iters=5, ngates=3, config=cfg)
 
 # Only print results from rank 0 when using MPI
 if not args.mpi or cudaq.mpi.rank() == 0:
