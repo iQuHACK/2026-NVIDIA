@@ -221,8 +221,6 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
   // Memetic Loop
   int generations = 0;
-  // Memetic Loop
-  int generations = 0;
   while (!(*stop_flag) && generations < 100000) { // Safety break
     generations++;
 
