@@ -43,7 +43,7 @@ import torch
 from cudaq import spin
 from lightning.fabric.loggers import CSVLogger
 
-from GQEMTS.gqe import get_default_config
+from src.GQEMTS.gqe import get_default_config
 
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 torch.manual_seed(3047)
