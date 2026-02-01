@@ -255,16 +255,13 @@ def generate_qemts_data(Ns, popsize=100, T=1, n_steps=3):
     time_q_list = []
 
     for n in Ns:
-        # --- Quantum initialization ---
+        # run QE-MTS
         quantum_init = quantum_population(popsize, T, n_steps, n)
+        quantum_final = MTS(len(quantum_init), n, population0=quantum_init, record_time=True)
 
-        start = time.perf_counter()
-        quantum_final = MTS(len(quantum_init), n, population0=quantum_init) # QE-MTS
-        end = time.perf_counter()
-
-        _, best_E_q, _, _, _ = quantum_final
+        _, best_E_q, _, _, _, convergence_time = quantum_final
         best_E_q_list.append(best_E_q)
-        time_q_list.append(end - start)
+        time_q_list.append(convergence_time)
 
     data = pd.DataFrame({
         "N": Ns,
