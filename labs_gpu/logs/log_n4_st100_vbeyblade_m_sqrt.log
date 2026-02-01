@@ -1,0 +1,31 @@
+=== BEYBLADE BENCHMARK ===
+N: 4
+Method: sqrt
+Steps: 100
+--- SIMULATION STDOUT ---
+
+=== Quantum LABS Simulation (BEYBLADE) ===
+N=4, Shots=100000, Steps=10, Lambda=sqrt
+Simulation Complete. Candidates exported to warm_starts/warm_n4_st100_vbeyblade_m_sqrt.bin
+
+--- SIMULATION STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n4_st100_vbeyblade_m_sqrt.bin
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=4, Target=2) ---
+
+============================================================
+RESULTS FOR N=4
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        2 (Target: 2)
+Direct TTS (sec):   0.0003 s
+Total Moves:        8192000
+Equivalent Evals:   32768000
+Throughput:         31544.3323 M-Moves/sec
+Best Bitstring:     1011
+============================================================
+
+--- RUNOPT STDERR ---
+

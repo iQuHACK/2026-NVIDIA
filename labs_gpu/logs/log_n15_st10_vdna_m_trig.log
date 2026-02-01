@@ -1,0 +1,31 @@
+=== DNA BENCHMARK ===
+N: 15
+Method: trig
+Steps: 10
+--- SIMULATION STDOUT ---
+
+=== Quantum LABS Simulation (DNA) ===
+N=15, Shots=100000, Steps=10, Lambda=trig
+Simulation Complete. Candidates exported to warm_starts/warm_n15_st10_vdna_m_trig.bin
+
+--- SIMULATION STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n15_st10_vdna_m_trig.bin
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=15, Target=15) ---
+
+============================================================
+RESULTS FOR N=15
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        15 (Target: 15)
+Direct TTS (sec):   0.0006 s
+Total Moves:        8192000
+Equivalent Evals:   122880000
+Throughput:         13827.0938 M-Moves/sec
+Best Bitstring:     111110011001010
+============================================================
+
+--- RUNOPT STDERR ---
+

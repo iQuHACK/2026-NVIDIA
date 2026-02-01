@@ -1,0 +1,16 @@
+=== DEFAULT BENCHMARK ===
+N: 7
+Method: trig
+Steps: 10
+--- SIMULATION STDOUT ---
+
+--- SIMULATION STDERR ---
+usage: one_shot.py [-h] --n N [--shots SHOTS] [--popsize POPSIZE] [--steps STEPS] [--output OUTPUT]
+                   [--variant {jenga,dna,beyblade,tensor_heavy}] [--lambda_method {linear,sqrt,cuberoot,trig}]
+one_shot.py: error: argument --variant: invalid choice: 'default' (choose from jenga, dna, beyblade, tensor_heavy)
+
+--- RUNOPT STDOUT ---
+
+--- RUNOPT STDERR ---
+Error: Cannot open warm start file: warm_starts/warm_n7_st10_vdefault_m_trig.bin
+

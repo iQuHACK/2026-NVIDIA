@@ -1,0 +1,42 @@
+=== RUN DATA ===
+N: 12
+Variant: jenga
+Steps: 2
+
+--- ONE_SHOT STDOUT ---
+
+=== Quantum LABS Simulation (JENGA) ===
+N=12, Shots=100000, Steps=2
+Computing Counter-Diabatic angles...
+Running Kernel: jenga (Single Run)...
+Collected 128 elite candidates from 100000 shots.
+--> Exporting 128 samples to 'warm_starts/warm_n12_st2_vjenga.txt' (Target Size: 128)...
+=== Complete ===
+
+
+--- ONE_SHOT STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n12_st2_vjenga.txt
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=12, Target=10) ---
+
+============================================================
+RESULTS FOR N=12
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        10 (Target: 10)
+Direct TTS (sec):   0.0005 s
+Total Moves:        8192000
+Equivalent Evals:   98304000
+Throughput:         15807.2564 M-Moves/sec
+Best Bitstring:     100110101111
+============================================================
+
+--- RUNOPT STDERR ---
+
+
+PARSED METRICS:
+Total Moves: 8192000
+Equiv Evals: 98304000
+Best Bitstring: 100110101111

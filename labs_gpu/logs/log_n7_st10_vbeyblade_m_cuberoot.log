@@ -1,0 +1,31 @@
+=== BEYBLADE BENCHMARK ===
+N: 7
+Method: cuberoot
+Steps: 10
+--- SIMULATION STDOUT ---
+
+=== Quantum LABS Simulation (BEYBLADE) ===
+N=7, Shots=100000, Steps=10, Lambda=cuberoot
+Simulation Complete. Candidates exported to warm_starts/warm_n7_st10_vbeyblade_m_cuberoot.bin
+
+--- SIMULATION STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n7_st10_vbeyblade_m_cuberoot.bin
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=7, Target=3) ---
+
+============================================================
+RESULTS FOR N=7
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        3 (Target: 3)
+Direct TTS (sec):   0.0003 s
+Total Moves:        8192000
+Equivalent Evals:   57344000
+Throughput:         24989.0185 M-Moves/sec
+Best Bitstring:     0001101
+============================================================
+
+--- RUNOPT STDERR ---
+
