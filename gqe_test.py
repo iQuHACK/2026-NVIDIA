@@ -197,7 +197,7 @@ def sample_optimized(coeffs: list[float], words: list[cudaq.pauli_word]):
         exp_pauli(coeffs[i], q, words[i], padding=n_qubits)
 
     # Measure all qubits in Z-basis
-    return [measure(q[i]) for i in range(n_qubits)]
+    return [mz(qubit) for qubit in q]
 
 def labs_energy(bitstring):
     # Convert 0/1 -> +1/-1
