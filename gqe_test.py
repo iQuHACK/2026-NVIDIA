@@ -202,7 +202,7 @@ def sample_optimized(coeffs: list[float], words: list[cudaq.pauli_word]):
     for qubit in q:
         mz(qubit)
 
-def labs_energy_01(x):
+def labs_energy(x):
     s = 2 * np.asarray(x) - 1
     N = len(s)
     E = 0
