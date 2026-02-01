@@ -59,7 +59,8 @@
 ## 3. The Acceleration Strategy
 
 ### Quantum Acceleration (CUDA-Q)
-* **GPU Scaling:** We will first test on a single A100 to confirm correct Since we plan accomodate larger $N$, we will target the brev backend to distribute the memory requirements of the $2^N$ state vector across multiple A100-80GB nodes, enabling the simulation of deeper circuits required for the impulse-to-adiabatic transition.
+* **Strategy:** We will initially test our DCQO circuits on a single NVIDIA A100 (80GB) to establish a performance baseline. To push the limits of the problem size $N$, we will scale up to **8 A100s** using the `nvidia-mgpu` backend, enabling shared memory across GPUs to accommodate the exponential growth of the state vector and determine the maximum attainable $N$.
+* **Memory Optimization (cuTensorNet):** If state-vector simulations encounter memory limits even with multi-GPU distribution, we will pivot to the **CUDA-Q TensorNet backend (`nvidia-cu-tensornet`)**. This approach uses tensor network contraction (via NVIDIA's cuTensorNet library) to simulate larger circuits by avoiding the explicit $2^N$ storage of the state vector, leveraging the massive parallel throughput of multiple GPUs for efficient contraction paths.
 * **Batch Sampling:** We will use `cudaq.sample` with a high shot count to generate a statistically significant "Quantum Seed" population, which will be transferred directly to GPU global memory for the MTS phase to minimize PCIe overhead.
 
 ### Classical Acceleration (MTS)
