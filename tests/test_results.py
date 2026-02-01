@@ -28,6 +28,7 @@ def params():
 VALIDATION_RESULTS = [0, 1, 1, 2, 2, 7, 3, 8, 12, 13, 5, 10, 6, 19]
 
 def test_classical_results(params: BenchmarkParams):
+    """test results for classical MTS"""
     energies = []
     for n in range(1, 15):
         _, best_energy, _, _, _ = mts.MTS(
@@ -47,6 +48,7 @@ def test_classical_results(params: BenchmarkParams):
         
 
 def test_qemts_results(params: BenchmarkParams):
+    """test results for quantum enhanced MTS"""
     energies = []
     for n in range(1, 15):
         # sample a quantum enhanced population
