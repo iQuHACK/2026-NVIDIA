@@ -50,6 +50,8 @@ def run_benchmark():
             convergence_time = "N/A"
             
             # Parse all history lines
+            # Regex to handle potential negative signs and scientific notation (optional but safer)
+            # e.g., 1.23E9, -5
             history_lines = re.findall(r"(\d+), (-?\d+)", output)
             if history_lines and best_e != "N/A":
                 target_e = int(best_e)
@@ -60,7 +62,7 @@ def run_benchmark():
                 # Find first occurrence of target_e
                 for cyc_str, e_str in history_lines:
                     e = int(e_str)
-                    cyc = int(cyc_str)
+                    cyc = float(cyc_str) # Could be large
                     if first_cycle == -1: first_cycle = cyc
                     if e == target_e:
                         best_cycle = cyc
@@ -68,14 +70,14 @@ def run_benchmark():
                 
                 if best_cycle != -1 and clock_rate > 0:
                     # Time from start of log (approx)
-                    # Actually we should use the timestamp relative to the first log entry?
-                    # Or relative to kernel start?
-                    # labs_gpu doesn't give kernel start cycle.
-                    # But (best_cycle - first_cycle) / rate gives time *after first improvement*.
-                    # This is a lower bound on convergence time.
-                    # Better: just report the time relative to the first log.
+                    # Use relative to first cycle in log to match user intuition of "search time"
+                    # ignoring setup time unless first log IS setup.
+                    # Actually, if we improve immediately at T0, time is 0.
+                    
                     conv_sec = (best_cycle - first_cycle) / clock_rate
-                    convergence_time = f"{conv_sec:.4f}"
+                    # If conv_sec is effectively 0 but not exactly, show small number
+                    if conv_sec < 0: conv_sec = 0
+                    convergence_time = f"{conv_sec:.6f}"
 
             print(f"{N:<5} {best_e:<10} {convergence_time:<10} {merit:<10} {seq:<20}")
 

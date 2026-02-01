@@ -178,7 +178,8 @@ int main(int argc, char **argv) {
   CHECK_CUDA(cudaMemcpy(h_log_energy.data(), d_log_energy,
                         h_log_count * sizeof(int), cudaMemcpyDeviceToHost));
 
-  std::cout << "ClockRate: " << prop.clockRate * 1000 << " Hz" << std::endl;
+  std::cout << "ClockRate: " << (long long)prop.clockRate * 1000 << " Hz"
+            << std::endl;
   std::cout << "Convergence History (Cycle, Energy):" << std::endl;
 
   // Sort logs by time (since parallelism might reorder slightly)

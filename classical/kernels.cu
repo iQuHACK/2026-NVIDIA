@@ -215,8 +215,28 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
     if (tid == 0) {
       pop_energies[i] = shared_reduction[0];
-      // Update global best
-      atomicMin(global_best_energy, shared_reduction[0]);
+
+      // Update global best with lock
+      int current_pop_e = shared_reduction[0];
+      if (current_pop_e < *global_best_energy) {
+        while (atomicCAS(d_lock, 0, 1) != 0)
+          ; // Lock
+        if (current_pop_e < *global_best_energy) {
+          atomicMin(global_best_energy, current_pop_e);
+          // Copy Sequence
+          for (int j = 0; j < ints_per_seq; ++j) {
+            global_best_seq[j] = pop_seqs[i * ints_per_seq + j];
+          }
+          // Log
+          int log_idx = *log_count;
+          if (log_idx < 1000) {
+            log_time[log_idx] = clock64();
+            log_energy[log_idx] = current_pop_e;
+            *log_count = log_idx + 1;
+          }
+        }
+        atomicExch(d_lock, 0); // Unlock
+      }
     }
     __syncthreads();
   }
