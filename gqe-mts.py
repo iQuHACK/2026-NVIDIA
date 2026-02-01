@@ -368,8 +368,8 @@ def main():
     tD0 = time.time()
 
     # bitstrings = list(samples.keys())
-    if len(bitstrings) == 0:
-        raise RuntimeError("cudaq.sample returned no bitstrings; cannot seed classical search.")
+    # if len(bitstrings) == 0:
+    #     raise RuntimeError("cudaq.sample returned no bitstrings; cannot seed classical search.")
 
     # SampleResult -> list of (bitstring, count)
     pairs = list(samples.items())          # [('0101...', 123), ('1110...', 45), ...]
