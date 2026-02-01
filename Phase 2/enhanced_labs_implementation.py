@@ -162,6 +162,24 @@ class AncillaManager:
                                     if op == 'allocate'), default=0))
         }
 
+    def get_reuse_efficiency(self) -> Dict:
+        """Calculate metrics for ancilla reuse efficiency."""
+        total_allocations = sum(1 for op, _ in self.allocation_history if op == 'allocate')
+        total_reclaims = sum(1 for op, _ in self.allocation_history if op == 'reclaim')
+
+        if total_allocations == 0:
+            reuse_ratio = 0
+        else:
+            reuse_ratio = len(self.ancilla_heap) / total_allocations
+
+        return {
+            'total_allocations': total_allocations,
+            'total_reclaims': total_reclaims,
+            'reuse_ratio': reuse_ratio,
+            'peak_active': self.get_stats()['peak_qubits'],
+            'current_heap_size': len(self.ancilla_heap)
+        }
+
 
 # ============================================================================
 # STEP 3: Enhanced Trotterized Circuit with Ancilla Management
@@ -252,7 +270,8 @@ def sample_quantum_population_enhanced(
         thetas: List[float],
         pop_size: int = 50,
         n_shots: int = 5000,
-        strategy: str = 'hybrid'
+        strategy: str = 'hybrid',
+        use_deduplication: bool=True
 ) -> Tuple[List[List[int]], Dict]:
     """
     Enhanced quantum population sampling with multiple strategies.
@@ -282,6 +301,7 @@ def sample_quantum_population_enhanced(
     print(f"Population size: {pop_size}")
     print(f"Quantum shots: {n_shots}")
     print(f"Strategy: {strategy}")
+    print(f"Deduplication: {use_deduplication}")
 
     # Sample from quantum circuit
     result = cudaq.sample(
@@ -298,6 +318,11 @@ def sample_quantum_population_enhanced(
     print(f"  Unique states: {len(counts)}")
     print(f"  Total shots: {total_shots}")
 
+    usage_stats = track_qubit_usage(N, G2, G4, n_steps)
+    print(f"\nQubit usage statistics:")
+    print(f"  Average active time: {usage_stats['average_active_time']:.2f}")
+    print(f"  Max active qubit time: {usage_stats['max_active_qubit']}")
+
     # Convert to population based on strategy
     if strategy == 'amplitude':
         population = _amplitude_based_sampling(counts, N, pop_size)
@@ -308,6 +333,22 @@ def sample_quantum_population_enhanced(
     else:  # hybrid
         population = _hybrid_sampling(counts, N, pop_size)
 
+    if use_deduplication:
+        population, dedup_stats = deduplicate_population(
+            population,
+            strategy='symmetric'  # Use LABS symmetry knowledge
+        )
+        print(f"\nDeduplication results:")
+        print(f"  Removed {dedup_stats['duplicates_removed']} duplicates")
+        print(f"  Compression: {dedup_stats['compression_ratio']:.2%}")
+
+        # Refill to desired size if needed
+        while len(population) < pop_size:
+            parent = random.choice(population[:max(1, len(population) // 2)])
+            child = mutate(parent, p_mut=0.1)
+            if tuple(child) not in set(tuple(seq) for seq in population):
+                population.append(child)
+
     # Calculate metrics
     energies = [utils.calculate_labs_energy(seq, N) for seq in population]
     metrics = {
@@ -316,7 +357,9 @@ def sample_quantum_population_enhanced(
         'mean_energy': np.mean(energies),
         'std_energy': np.std(energies),
         'unique_states': len(counts),
-        'population_size': len(population)
+        'population_size': len(population),
+        'qubit_efficiency': usage_stats['average_active_time'] / usage_stats['max_active_qubit'] if usage_stats['max_active_qubit'] > 0 else 0,
+        'deduplication_stats': dedup_stats if use_deduplication else None
     }
 
     print(f"\nPopulation metrics:")
@@ -476,6 +519,96 @@ def _hybrid_sampling(counts: Dict, N: int, pop_size: int) -> List[List[int]]:
     return population[:pop_size]
 
 
+def track_qubit_usage(N: int, G2: List[List[int]], G4: List[List[int]],
+                      n_steps: int) -> Dict:
+    """
+    Track which qubits are actively used at each step.
+    This enables SQUARE-inspired optimization for circuit scheduling.
+    """
+    qubit_usage = {i: [] for i in range(N)}
+    current_time = 0
+
+    for step in range(n_steps):
+        # Track G2 interactions
+        for interaction in G2:
+            i, k = interaction
+            qubit_usage[i].append(current_time)
+            qubit_usage[k].append(current_time)
+            current_time += 1  # Each rotation is one time unit
+
+        # Track G4 interactions
+        for interaction in G4:
+            i, i1, ik, iki = interaction
+            # All four qubits involved
+            for q in [i, i1, ik, iki]:
+                qubit_usage[q].append(current_time)
+            current_time += 3  # CNOT ladder depth
+
+    # Calculate metrics
+    qubit_active_time = {q: len(times) for q, times in qubit_usage.items()}
+    total_active_time = sum(qubit_active_time.values())
+
+    return {
+        'qubit_usage': qubit_usage,
+        'qubit_active_time': qubit_active_time,
+        'total_active_time': total_active_time,
+        'average_active_time': total_active_time / N if N > 0 else 0,
+        'max_active_qubit': max(qubit_active_time.values()) if qubit_active_time else 0
+    }
+
+
+def deduplicate_population(population: List[List[int]],
+                           strategy: str = 'hash') -> Tuple[List[List[int]], Dict]:
+    """
+    Remove duplicate sequences using SQUARE-inspired memory efficiency.
+
+    Args:
+        population: List of sequences
+        strategy: 'hash' or 'symmetric' (also remove symmetric variants)
+
+    Returns:
+        Deduplicated population and statistics
+    """
+    if strategy == 'hash':
+        # Simple deduplication
+        seen = set()
+        unique_pop = []
+
+        for seq in population:
+            seq_tuple = tuple(seq)
+            if seq_tuple not in seen:
+                unique_pop.append(seq)
+                seen.add(seq_tuple)
+
+    elif strategy == 'symmetric':
+        # Advanced: remove symmetric variants (uses LABS symmetry knowledge)
+        seen = set()
+        unique_pop = []
+
+        for seq in population:
+            # Generate all 4 symmetric variants
+            variants = utils.generate_symmetric_variants(seq)
+            variant_tuples = [tuple(v) for v in variants]
+
+            # Check if any variant was seen
+            if not any(vt in seen for vt in variant_tuples):
+                unique_pop.append(seq)
+                # Mark all variants as seen
+                seen.update(variant_tuples)
+
+    else:
+        unique_pop = population
+
+    stats = {
+        'original_size': len(population),
+        'deduplicated_size': len(unique_pop),
+        'duplicates_removed': len(population) - len(unique_pop),
+        'compression_ratio': len(unique_pop) / len(population) if population else 0
+    }
+
+    return unique_pop, stats
+
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -547,6 +680,20 @@ if __name__ == "__main__":
         'mean_energy': np.mean(random_energies),
         'std_energy': np.std(random_energies)
     }
+
+    print(f"QUBIT REUSE ANALYSIS")
+    # Track qubit usage
+    usage_stats = track_qubit_usage(N, G2, G4, n_steps)
+    print(f"Qubit efficiency: {usage_stats['qubit_efficiency']:.2%}")
+    print(f"Most active qubit used {usage_stats['max_active_qubit']} times")
+    print(f"Average qubit used {usage_stats['average_active_time']:.2f} times")
+
+    # Show memory efficiency from deduplication
+    if quantum_metrics.get('deduplication_stats'):
+        dedup = quantum_metrics['deduplication_stats']
+        print(f"\nMemory savings from deduplication:")
+        print(f"  Compression ratio: {dedup['compression_ratio']:.2%}")
+        print(f"  Space saved: {dedup['duplicates_removed']} sequences")
 
     # Comparison
     print(f"\n{'=' * 70}")
