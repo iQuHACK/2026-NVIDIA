@@ -114,7 +114,7 @@ We will split verification by environment to control cost and isolate GPU-specif
 
 | Verification level | CPU (Qbraid) | T4 | L4 | A100 | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Unit tests (fast) | ✅ | optional | optional | ❌ | Always run on CPU in CI; GPU optional locally |
+| Unit tests (fast) | ✅ | ❌ | ❌ | ❌ | Always run on CPU in CI; GPU optional locally |
 | CPU regression tests (golden seeds) | ✅ | ✅ | ✅ | ✅ | Confirms determinism and guards against refactors |
 | GPU/CPU parity tests (small N) | ❌ | ✅ | ✅ | ✅ | Exact match expected for deterministic kernels |
 | End-to-end smoke (N~64, short budget) | ✅ | ✅ | ✅ | ✅ | Confirms no crashes + energy improves |

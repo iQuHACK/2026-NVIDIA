@@ -38,7 +38,9 @@ avoid recomputing the full LABS objective for each 1-bit flip. They’re good
 targets for CuPy/Numba acceleration later.
 """
 
+from tracemalloc import start
 from typing import Optional, Tuple, List
+import time
 
 import numpy as np
 
@@ -226,8 +228,17 @@ def MTS(
     tabu_tenure: int = 10,
     population0: Optional[np.ndarray] = None,
     seed: Optional[int] = None,
-):
+    record_time: bool = False,
+) -> Tuple[np.ndarray, int, np.ndarray, np.ndarray, List[int], Optional[float]]:
     """Memetic Tabu Search (MTS) as depicted in the Exercise 2 figure.
+
+    Args:
+        k: number of sequences in the population
+        N: length of the bitstrings
+        target: target energy
+        max_iter: maximum number of iterations
+        p_sample: probability of sampling a sequence
+        p_mutate: probability of mutating a sequence
 
     Returns:
         best_s: best bitstring found (N,)
@@ -235,7 +246,11 @@ def MTS(
         population: final population (k,N)
         energies: energies for final population (k,)
         best_history: list of best energies over iterations
+        time: time taken to find the best solution (float)
     """
+
+    start_time = time.time()
+    end_time = start_time
     rng = np.random.default_rng(seed)
 
     # 1) generate initial population (or use a provided seed population)
@@ -283,6 +298,7 @@ def MTS(
         if local_E < best_E:
             best_E = int(local_E)
             best_s = local_s.copy()
+            end_time = time.time()
 
         # (e) randomly replace population member if better
         r = int(rng.integers(0, k))
@@ -291,6 +307,9 @@ def MTS(
             energies[r] = int(local_E)
 
         best_history.append(best_E)
+
+    if record_time:
+        return best_s, best_E, population, energies, best_history, end_time - start_time
 
     return best_s, best_E, population, energies, best_history
 
