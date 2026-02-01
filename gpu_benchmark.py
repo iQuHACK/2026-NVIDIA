@@ -28,7 +28,7 @@ def run_benchmark():
 
     for N in range(1,40):
         # Run ./labs_gpu <N>
-            cmd = [str(classical_dir / "labs_gpu"), str(N)]
+        cmd = [str(classical_dir / "labs_gpu"), str(N)]
         
         # Capture output
         try:
