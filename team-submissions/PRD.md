@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD)
 
-**Project Name:** Quantum-enhanced Generative Quantum Eigensolver with Tensor Networks and Multi-Trajectory Search for LABS Problem
+**Project Name:** Quantum-enhanced Generative Quantum Eigensolver with Tensor Networks and Memetic Tabu Search for LABS Problem
 
 **Team Name:** QQQ
 
@@ -25,7 +25,7 @@
 
 ### Choice of Quantum Algorithm
 * **Algorithm:**
-    * Generative Quantum Eigensolver (GQE) combined with Multi-Trajectory Search (MTS).
+    * Generative Quantum Eigensolver (GQE) combined with Memetic Tabu Search (MTS) (MTS).
     * Using tensor network (TN) methods to efficiently simulate quantum circuits within energy evaluations.
     * Incorporating Quantum-inspired Kolmogorov-Arnold Networks (QKAN) as part of the transformer model, making it as QKANsformer to enhance the GQE framework.
 
