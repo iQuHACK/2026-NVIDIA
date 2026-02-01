@@ -7,7 +7,7 @@ SRCS = labs_gpu.cu kernels.cu
 all: $(TARGET)
 
 $(TARGET): $(SRCS)
-	$(NVCC) $(NVCC_FLAGS) -o $@ $<
+	$(NVCC) $(NVCC_FLAGS) -o $@ $(SRCS)
 
 clean:
 	rm -f $(TARGET)

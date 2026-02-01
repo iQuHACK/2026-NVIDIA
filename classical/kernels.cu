@@ -173,7 +173,7 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
   int bid = blockIdx.x;
   int bdim = blockDim.x;
 
-  curandStaterng state;
+  curandState state;
   curand_init(seeds[bid], tid, 0, &state);
 
   // 1. Initialize Population
@@ -216,6 +216,10 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
       atomicMin(global_best_energy, shared_reduction[0]);
     }
     __syncthreads();
+    if (tid == 0 && pop_energies[i] < 0) {
+      printf("Block %d: Init Pop %d has NEGATIVE Energy: %d\n", bid, i,
+             pop_energies[i]);
+    }
   }
 
   // Memetic Loop
@@ -430,6 +434,50 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
         }
       }
       __syncthreads();
+
+      // DEBUG: Check for drift
+      // Only check periodically to allow running somewhat fast (e.g. every 10
+      // steps or if iter < 5) Or if N is small, check always.
+      if (tid == 0 && iter < 10) {
+        // Need to compute exact energy of child_seq
+        // Cannot call compute_energy_parallel here easily because it expects
+        // all threads and writes to vectorC (which is current). Actually we
+        // have vectorC updated. We can just sum squares of vectorC.
+      }
+
+      // Parallel Validation of Energy consistency
+      // Calculate E from vectorC
+      int check_E = 0;
+      for (int k = 1 + tid; k < N; k += bdim) {
+        check_E += vectorC[k] * vectorC[k];
+      }
+      // Reduce
+      if (tid == 0)
+        shared_reduction[0] = 0;
+      __syncthreads();
+      atomicAdd(&shared_reduction[0], check_E);
+      __syncthreads();
+
+      if (tid == 0) {
+        int exact_E = shared_reduction[0];
+        if (exact_E != current_energy) {
+          // Only print once per block to avoid spam
+          if (iter < 5)
+            printf("Block %d Iter %d: DRIFT detected! Current: %d, Exact: %d, "
+                   "Delta: %d\n",
+                   bid, iter, current_energy, exact_E,
+                   current_energy - exact_E);
+
+          // FORCE CORRECTION
+          current_energy = exact_E;
+        }
+        if (current_energy < 0) {
+          printf("Block %d Iter %d: NEGATIVE ENERGY %d\n", bid, iter,
+                 current_energy);
+        }
+      }
+      __syncthreads();
+
     } // End Tabu Loop
 
     // 4. Update Global Best & Population
