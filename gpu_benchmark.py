@@ -15,8 +15,8 @@ def run_benchmark():
         return
 
     print("Compilation Successful.")
-    print(f"{'N':<5} {'Best E':<10} {'Time(s)':<10} {'Merit F.':<10} {'Sequence':<20}")
-    print("-" * 70)
+    print(f"{'N':<5} {'Best E':<10} {'Conv. Time':<12} {'Total Time':<12} {'Merit F.':<10} {'Generations':<12} {'Sequence':<20}")
+    print("-" * 100)
 
     # 2. Run Benchmark for N=1..30
     for N in range(30, 51):
@@ -82,7 +82,11 @@ def run_benchmark():
                     if conv_sec < 0: conv_sec = 0
                     convergence_time = f"{conv_sec:.12f}"
 
-            print(f"{N:<5} {best_e:<10} {convergence_time:<10} {merit:<10} {seq:<20}")
+            # Parse Total Generations
+            gen_match = re.search(r"Total Generations: (\d+)", output)
+            total_gen = gen_match.group(1) if gen_match else "N/A"
+
+            print(f"{N:<5} {best_e:<10} {convergence_time:<12} {total_time:<12} {merit:<10} {total_gen:<12} {seq:<20}")
 
         except subprocess.TimeoutExpired:
             print(f"{N:<5} TIMEOUT")

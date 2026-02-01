@@ -147,7 +147,8 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
                                       uint32_t *global_best_seq,
                                       long long *log_time, int *log_energy,
                                       int *log_count, int *d_lock,
-                                      long long *start_clk) {
+                                      long long *start_clk,
+                                      int *total_generations) {
   // Dynamic shared memory
   extern __shared__ int shared_mem[];
   // Memory Layout:
@@ -250,7 +251,7 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
   // Memetic Loop
   int generations = 0;
-  while (!(*stop_flag) && generations < 20000) { // Safety break
+  while (!(*stop_flag) && generations < 1000000) { // Safety break
     generations++;
 
     // 2. Selection (Thread 0)
@@ -503,4 +504,10 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
     __syncthreads();
 
   } // End Memetic Loop
+
+  // Write total generations (Thread 0 only)
+  if (tid == 0 && bid == 0) {
+    if (total_generations)
+      *total_generations = generations;
+  }
 }

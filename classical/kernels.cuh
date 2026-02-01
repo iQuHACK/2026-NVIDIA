@@ -10,6 +10,7 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
                                       uint32_t *global_best_seq,
                                       long long *log_time, int *log_energy,
                                       int *log_count, int *d_lock,
-                                      long long *start_clk);
+                                      long long *start_clk,
+                                      int *total_generations);
 
 #endif // KERNELS_CUH

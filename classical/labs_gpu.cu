@@ -65,15 +65,18 @@ int main(int argc, char **argv) {
   int *d_log_count;
   int *d_lock;
   long long *d_start_clk;
+  int *d_total_generations;
 
   CHECK_CUDA(cudaMalloc(&d_log_time, 100000 * sizeof(long long)));
   CHECK_CUDA(cudaMalloc(&d_log_energy, 100000 * sizeof(int)));
   CHECK_CUDA(cudaMalloc(&d_log_count, sizeof(int)));
   CHECK_CUDA(cudaMalloc(&d_lock, sizeof(int)));
   CHECK_CUDA(cudaMalloc(&d_start_clk, sizeof(long long)));
+  CHECK_CUDA(cudaMalloc(&d_total_generations, sizeof(int)));
 
   CHECK_CUDA(cudaMemset(d_log_count, 0, sizeof(int)));
   CHECK_CUDA(cudaMemset(d_lock, 0, sizeof(int)));
+  CHECK_CUDA(cudaMemset(d_total_generations, 0, sizeof(int)));
 
   // Result storage (best found)
   int *d_global_best_energy;
@@ -130,7 +133,8 @@ int main(int argc, char **argv) {
   // Launch Kernel
   memetic_search_kernel<<<num_blocks, threads_per_block, shared_mem_bytes>>>(
       N, target_energy, d_stop_flag, d_global_best_energy, d_seeds, d_best_seq,
-      d_log_time, d_log_energy, d_log_count, d_lock, d_start_clk);
+      d_log_time, d_log_energy, d_log_count, d_lock, d_start_clk,
+      d_total_generations);
 
   CHECK_CUDA(cudaGetLastError());
 
@@ -142,6 +146,12 @@ int main(int argc, char **argv) {
   CHECK_CUDA(cudaMemcpy(&h_start_clk, d_start_clk, sizeof(long long),
                         cudaMemcpyDeviceToHost));
   std::cout << "Start Cycle: " << h_start_clk << std::endl;
+
+  // Retrieve Generations
+  int h_total_gen = 0;
+  CHECK_CUDA(cudaMemcpy(&h_total_gen, d_total_generations, sizeof(int),
+                        cudaMemcpyDeviceToHost));
+  std::cout << "Total Generations: " << h_total_gen << std::endl;
 
   CHECK_CUDA(cudaMemcpy(&h_global_best_energy, d_global_best_energy,
                         sizeof(int), cudaMemcpyDeviceToHost));
@@ -210,6 +220,7 @@ int main(int argc, char **argv) {
   cudaFree(d_log_count);
   cudaFree(d_lock);
   cudaFree(d_start_clk);
+  cudaFree(d_total_generations);
 
   return 0;
 }
