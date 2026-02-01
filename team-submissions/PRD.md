@@ -17,10 +17,10 @@
 
 | Role | Name | GitHub Handle | Discord Handle
 | :--- | :--- | :--- | :--- |
-| **Project Lead** (Architect) | [Name] | [@handle] | [@handle] |
-| **GPU Acceleration PIC** (Builder) | [Name] | [@handle] | [@handle] |
-| **Quality Assurance PIC** (Verifier) | [Name] | [@handle] | [@handle] |
-| **Technical Marketing PIC** (Storyteller) | [Name] | [@handle] | [@handle] |
+| **Project Lead** (Architect) | kel404 | @kel404x | @kel404_ |
+| **GPU Acceleration PIC** (Builder) | Meghaj Kabra | @MeghajBUD | @thechief1739 |
+| **Quality Assurance PIC** (Verifier) | Catomakyto | @Catomakyto | @cate_96047 |
+| **Technical Marketing PIC** (Storyteller) | Catomakyto | @Catomakyto| @cate_96047 |
 
 ---
 
@@ -28,13 +28,9 @@
 **Owner:** Project Lead
 
 ### Choice of Quantum Algorithm
-* **Algorithm:** [Identify the specific algorithm or ansatz]
-    * *Example:* "Quantum Approximate Optimization Algorithm (QAOA) with a hardware-efficient ansatz."
-    * *Example:* "Variational Quantum Eigensolver (VQE) using a custom warm-start initialization."
+* **Algorithm:** QAOA with the LABS Hamiltonian (G2/G4 from the tutorial) and the standard X-mixer, in CUDA-Q. QAOA samples seed the initial population for classical MTS (QE-MTS). We use X-mixer first; Grover mixer is an optional upgrade if time permits.
 
-* **Motivation:** [Why this algorithm? Connect it to the problem structure or learning goals.]
-    * *Example (Metric-driven):* "We chose QAOA because we believe the layer depth corresponds well to the correlation length of the LABS sequences."
-    *  Example (Skills-driven):* "We selected VQE to maximize skill transfer. Our senior members want to test a novel 'warm-start' adaptation, while the standard implementation provides an accessible ramp-up for our members new to quantum variational methods."
+* **Motivation:** QAOA is a different algorithm from the tutorial’s counteradiabatic, so it satisfies Phase 2’s custom quantum seed. We reuse the same LABS cost formulation (G2/G4). The X-mixer matches CUDA-Q examples and is quick to implement, so we can deliver a working, GPU-accelerated QE-MTS pipeline with lower risk.
    
 
 ### Literature Review
