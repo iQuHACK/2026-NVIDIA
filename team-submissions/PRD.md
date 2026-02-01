@@ -58,19 +58,28 @@
 
 ## 3. The Acceleration Strategy
 
-<!-- ### Quantum Acceleration (CUDA-Q)
-* **Strategy:** [How will you use the GPU for the quantum part?]
+### Quantum Acceleration (CUDA-Q)
+<!-- * **Strategy:** [How will you use the GPU for the quantum part?]
+    * *Example:* "After testing with a single L4, we will target the `nvidia-mgpu` backend to distribute the circuit simulation across multiple L4s for large $N$." -->
+ * **Strategy:** [How will you use the GPU for the quantum part?]
     * *Example:* "After testing with a single L4, we will target the `nvidia-mgpu` backend to distribute the circuit simulation across multiple L4s for large $N$."
- 
+ ## 3. The Acceleration Strategy
+**Owner:** GPU Acceleration PIC
+
+### Quantum Acceleration (CUDA-Q)
+* **GPU Scaling:** We will first test on a single A100 to confirm correct Since we plan accomodate larger $N$, we will target the brev backend to distribute the memory requirements of the $2^N$ state vector across multiple A100-80GB nodes, enabling the simulation of deeper circuits required for the impulse-to-adiabatic transition.
+* **Batch Sampling:** We will use `cudaq.sample` with a high shot count to generate a statistically significant "Quantum Seed" population, which will be transferred directly to GPU global memory for the MTS phase to minimize PCIe overhead.
 
 ### Classical Acceleration (MTS)
-* **Strategy:** [The classical search has many opportuntities for GPU acceleration. What will you chose to do?]
-    * *Example:* "The standard MTS evaluates neighbors one by one. We will use `cupy` to rewrite the energy function to evaluate a batch of 1,000 neighbor flips simultaneously on the GPU."
+* **Strategy:** Our strategy shifts from sequential neighbor evaluation to a massively parallel population-based approach using native CUDA C++.
+* **Parallel Energy Evaluation:** Instead of evaluating one neighbor flip at a time, we use a custom CUDA kernel to evaluate the entire population of 8,192 sequences simultaneously.
+* **Warp-Level Optimization:** We implement warp-level primitives (`__shfl_down_sync`) to perform rapid reductions for finding the minimum energy move within each Tabu search thread block.
+* **Shared Memory Utilization:** To maximize throughput on A100 hardware, we load the sequence and correlation vectors into Shared Memory (L1 cache), reducing global memory latency during the frequent energy-update cycles of the Tabu search.
+* **Asynchronous Execution:** We will use CUDA streams to overlap the "Quantum Seeding" process with the initialization of the classical population, ensuring the GPU is never idle.
 
 ### Hardware Targets
-* **Dev Environment:** [e.g., Qbraid (CPU) for logic, Brev L4 for initial GPU testing]
-* **Production Environment:** [e.g., Brev A100-80GB for final N=50 benchmarks] -->
-
+* **Dev Environment:** **qBraid (CPU)** for initial logic validation of the $G_2$ and $G_4$ interaction sets; **Brev L4** for debugging CUDA kernels and verifying energy symmetry.
+* **Production Environment:** **Brev A100-80GB** for final benchmarks, utilizing the high memory bandwidth to scale the MTS population and handle the large state vectors required for $N=40+$ quantum simulations.
 ---
 
 ## 4. The Verification Plan
