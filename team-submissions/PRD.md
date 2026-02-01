@@ -71,18 +71,16 @@
 * **Production Environment:** **Brev A100-80GB** for final benchmarks, utilizing the high memory bandwidth to scale the MTS population and handle the large state vectors required for $N=40+$ quantum simulations.
 ---
 
-## 4. The Verification Plan
+### 4. The Verification Plan
 
-<!-- ### Unit Testing Strategy
-* **Framework:** [e.g., `pytest`, `unittest`]
-* **AI Hallucination Guardrails:** [How do you know the AI code is right?]
-    * *Example:* "We will require AI-generated kernels to pass a 'property test' (Hypothesis library) ensuring outputs are always within theoretical energy bounds before they are integrated."
+### Unit Testing Strategy
+* **Framework:** We utilize the standard Python `unittest` framework to implement a **Unified Test Suite** (`TestLABS`). This suite bridges high-level sequence transformations with our core energy logic.
+* **AI Hallucination Guardrails:** To ensure the integrity of our optimized search logic, we maintain a "Golden Reference" `calculate_energy` function. Our Tabu search's incremental energy updates (`get_delta_energy`) are strictly validated against this reference to ensure numerical consistency.
 
 ### Core Correctness Checks
-* **Check 1 (Symmetry):** [Describe a specific physics check]
-    * *Example:* "LABS sequence $S$ and its negation $-S$ must have identical energies. We will assert `energy(S) == energy(-S)`."
-* **Check 2 (Ground Truth):**
-    * *Example:* "For $N=3$, the known optimal energy is 1.0. Our test suite will assert that our GPU kernel returns exactly 1.0 for the sequence `[1, 1, -1]`." -->
+* **Check 1 (Symmetry & Invariance):** The problem holds that $E(S) = E(-S)$ and $E(S) = E(S_{reversed})$. Our `test_invariance_properties` suite asserts these physical identities using random sequences to ensure no directional bias exists in our energy calculations.
+* **Check 2 (Ground Truth Validation):** We perform specific sequence checks for known energy outputs based on the visualization provided for $N=7$ (e.g., sequence "0100111" must yield $E=3$). These hard-coded tests prevent regression in our bit-to-spin transformations.
+* **Check 3 (Exhaustive Integration):** Our `test_known_minima_small_n` suite runs the full Memetic Tabu Search (MTS) for $N=3$ through $N=20$. It asserts that the solver reaches the global minima defined in the Bernasconi model within the iteration limit.
 
 ---
 
