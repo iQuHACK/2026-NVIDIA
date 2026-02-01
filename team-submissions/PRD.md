@@ -113,12 +113,11 @@
 
 | Phase | GPU | Hourly Cost | Purpose | Hours | Budget |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Dev & Debug | L4 | $0.60-0.87 | Test quantum circuits (N≤30), verify MTS logic | 5 | $4.00 |
-| Quantum Scale-Up | A100 40GB | $2.00-2.50 | Test quantum algorithm N=35-40 | 2 | $5.00 |
-| MTS Acceleration | A100 40GB | $2.00-2.50 | Parallelize classical MTS, benchmark N>50 | 3 | $7.00 |
+| Dev & Debug | L4 | $0.60-0.87 | Test quantum circuits (N≤30), verify MTS logic, debug CUDA kernels | 6 | $4.50 |
+| Production Testing | A100 80GB | $3.00-4.00 | Scale quantum algorithm N=35-40, parallelize MTS, benchmark N>50 | 3 | $10.50 |
 | Final Benchmark | A100 80GB | $3.00-4.00 | Production runs for presentation plots | 1 | $3.50 |
-| Buffer | - | - | Handle failures, re-runs | - | $0.50 |
-| **Total** | | | | **11** | **$20.00** |
+| Buffer | - | - | Handle failures, re-runs | - | $1.50 |
+| **Total** | | | | **10** | **$20.00** |
 
 **Anti-Zombie Protocol (Resource Protection Plan):**
 1. **Timer Alarms:** Set 30-minute timer alarms during active development sessions
