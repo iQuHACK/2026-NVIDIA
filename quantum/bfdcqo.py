@@ -5,9 +5,41 @@ import tutorial_notebook.auxiliary_files.labs_utils as utils
 import time
 
 # TODO FIX LATER IMPORT
-from ... import get_interactions
-from ... import energy
+from qe_mts import get_interactions
+from qe_mts import r_zz, r_yz, r_zy, r_zzzz, r_yzzz, r_zyzz, r_zzyz, r_zzzy
 from classical.mts import MTS
+
+def energy(s: np.ndarray) -> np.ndarray:
+    """LABS energy.
+
+    E(s) = sum_{k=1..N-1} C_k(s)^2, where C_k = sum_{i=1..N-k} s_i s_{i+k}
+
+    Supports:
+      - s shape (N,)  -> returns scalar np.int64
+      - s shape (k,N) -> returns (k,) energies
+      
+    Note: taken from phase 1.
+    """
+    s = np.asarray(s)
+
+    if s.ndim == 1:
+        N = s.shape[0]
+        e = np.int64(0)
+        for shift in range(1, N):
+            ck = int(np.dot(s[: N - shift], s[shift:]))
+            e += np.int64(ck * ck)
+        return e
+
+    if s.ndim == 2:
+        k_pop, N = s.shape
+        e = np.zeros(k_pop, dtype=np.int64)
+        for shift in range(1, N):
+            ck = (s[:, : N - shift] * s[:, shift:]).sum(axis=1, dtype=np.int64)
+            e += ck * ck
+        return e
+
+    raise ValueError("s must be 1D or 2D")
+
 
 def get_interactions(N):
     """
@@ -42,6 +74,8 @@ def get_interactions(N):
                     G4.append(quad)
 
     return G2, G4
+
+## BF-DCQO specific functions
 
 def bias_angle(hb: float) -> float:
     """
@@ -253,6 +287,7 @@ def quantum_enhanced_mts(N: int, pop_size: int,
     
     Returns dictionary with timing and performance metrics.
     """
+    
     results = {
         'N': N,
         'pop_size': pop_size,
