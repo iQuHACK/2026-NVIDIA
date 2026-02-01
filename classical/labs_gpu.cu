@@ -64,11 +64,13 @@ int main(int argc, char **argv) {
   int *d_log_energy;
   int *d_log_count;
   int *d_lock;
+  long long *d_start_clk;
 
   CHECK_CUDA(cudaMalloc(&d_log_time, 100000 * sizeof(long long)));
   CHECK_CUDA(cudaMalloc(&d_log_energy, 100000 * sizeof(int)));
   CHECK_CUDA(cudaMalloc(&d_log_count, sizeof(int)));
   CHECK_CUDA(cudaMalloc(&d_lock, sizeof(int)));
+  CHECK_CUDA(cudaMalloc(&d_start_clk, sizeof(long long)));
 
   CHECK_CUDA(cudaMemset(d_log_count, 0, sizeof(int)));
   CHECK_CUDA(cudaMemset(d_lock, 0, sizeof(int)));
@@ -128,12 +130,18 @@ int main(int argc, char **argv) {
   // Launch Kernel
   memetic_search_kernel<<<num_blocks, threads_per_block, shared_mem_bytes>>>(
       N, target_energy, d_stop_flag, d_global_best_energy, d_seeds, d_best_seq,
-      d_log_time, d_log_energy, d_log_count, d_lock);
+      d_log_time, d_log_energy, d_log_count, d_lock, d_start_clk);
 
   CHECK_CUDA(cudaGetLastError());
 
   CHECK_CUDA(cudaDeviceSynchronize());
   auto end_time = std::chrono::high_resolution_clock::now();
+
+  // Retrieve Start Cycle
+  long long h_start_clk = 0;
+  CHECK_CUDA(cudaMemcpy(&h_start_clk, d_start_clk, sizeof(long long),
+                        cudaMemcpyDeviceToHost));
+  std::cout << "Start Cycle: " << h_start_clk << std::endl;
 
   CHECK_CUDA(cudaMemcpy(&h_global_best_energy, d_global_best_energy,
                         sizeof(int), cudaMemcpyDeviceToHost));
@@ -201,6 +209,7 @@ int main(int argc, char **argv) {
   cudaFree(d_log_energy);
   cudaFree(d_log_count);
   cudaFree(d_lock);
+  cudaFree(d_start_clk);
 
   return 0;
 }

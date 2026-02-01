@@ -46,6 +46,10 @@ def run_benchmark():
             rate_match = re.search(r"ClockRate: (\d+) Hz", output)
             clock_rate = float(rate_match.group(1)) if rate_match else 1.0
             
+            # Parse Start Cycle
+            start_match = re.search(r"Start Cycle: (\d+)", output)
+            start_cycle = float(start_match.group(1)) if start_match else 0.0
+
             # Find the line with the best energy
             convergence_time = "N/A"
             
@@ -55,26 +59,25 @@ def run_benchmark():
             history_lines = re.findall(r"(\d+), (-?\d+)", output)
             if history_lines and best_e != "N/A":
                 target_e = int(best_e)
-                first_cycle = -1
                 best_cycle = -1
                 
                 # Check if sorted? The C++ sorts it.
                 # Find first occurrence of target_e
+                # Note: history_lines contains (timestamp, energy)
                 for cyc_str, e_str in history_lines:
                     e = int(e_str)
                     cyc = float(cyc_str) # Could be large
-                    if first_cycle == -1: first_cycle = cyc
                     if e == target_e:
                         best_cycle = cyc
                         break # Found first instance
                 
                 if best_cycle != -1 and clock_rate > 0:
-                    # Time from start of log (approx)
-                    # Use relative to first cycle in log to match user intuition of "search time"
-                    # ignoring setup time unless first log IS setup.
-                    # Actually, if we improve immediately at T0, time is 0.
+                    # Time from kernel start
+                    # Use relative to start_cycle if available, otherwise fallback to first log entry (not ideal)
                     
-                    conv_sec = (best_cycle - first_cycle) / clock_rate
+                    base_cycle = start_cycle
+                    
+                    conv_sec = (best_cycle - base_cycle) / clock_rate
                     # If conv_sec is effectively 0 but not exactly, show small number
                     if conv_sec < 0: conv_sec = 0
                     convergence_time = f"{conv_sec:.12f}"

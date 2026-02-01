@@ -146,7 +146,8 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
                                       int *global_best_energy, uint64_t *seeds,
                                       uint32_t *global_best_seq,
                                       long long *log_time, int *log_energy,
-                                      int *log_count, int *d_lock) {
+                                      int *log_count, int *d_lock,
+                                      long long *start_clk) {
   // Dynamic shared memory
   extern __shared__ int shared_mem[];
   // Memory Layout:
@@ -178,6 +179,12 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
   curandState state;
   curand_init(seeds[bid], tid, 0, &state);
+
+  // Capture Start Time
+  if (tid == 0 && bid == 0) {
+    if (start_clk)
+      *start_clk = clock64();
+  }
 
   // 1. Initialize Population
   // Parallel Initialization: Each thread inits some bits of some sequences or
