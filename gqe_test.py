@@ -12,7 +12,7 @@
 # e.g. PMIX_MCA_gds=hash mpiexec -np 2 python3 gqe_h2.py --mpi
 
 import argparse
-
+import numpy as np
 import cudaq
 
 parser = argparse.ArgumentParser()
