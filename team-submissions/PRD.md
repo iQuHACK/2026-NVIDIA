@@ -54,7 +54,7 @@
  
 
 ### Classical Acceleration (MTS)
-  * While standard MTS evaluates neighbors sequentially, we will implement a vectorized energy function using `cupy` to enable parallel neighbor flips on the GPU.
+  * While standard MTS evaluates neighbors sequentially, we utilize `cupy` to vectorize the energy function, enabling parallel neighbor flips on the GPU. Furthermore, we implement a custom CUDA kernel to replace standard array operations, significantly reducing memory bandwidth bottlenecks.
 
 ### Hardware Targets
 * **Dev Environment:** Qbraid (CPU) for logic, Brev L4 for initial GPU testing.
