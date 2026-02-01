@@ -50,11 +50,23 @@
 ### Quantum Acceleration (CUDA-Q)
 * **Strategy:** [How will you use the GPU for the quantum part?]
     * *Example:* "After testing with a single L4, we will target the `nvidia-mgpu` backend to distribute the circuit simulation across multiple L4s for large $N$."
+
+We are currently developing and testing our code on cloud infrastructure with access to high‑end NVIDIA GPUs. Our initial goal is to prototype, debug, and benchmark on these higher‑performance devices to ensure correctness and establish baseline runtimes.
+
+In parallel, we are designing the workflow to be portable to lower‑cost hardware. Specifically, we aim to:
+
+Scale down the computation so that the majority of the workload can run on a consumer‑grade GPU,
+Offload only the most compute‑intensive components to a Brev‑hosted GPU when necessary.
+The main challenge in this down‑scaling process is maintaining acceptable speed and overall performance while reducing GPU capability and cost. To address this, we will profile the code, identify bottlenecks, and iteratively refactor kernels and data movement patterns to keep utilization high even on smaller GPUs.
  
 
 ### Classical Acceleration (MTS)
 * **Strategy:** [The classical search has many opportuntities for GPU acceleration. What will you chose to do?]
     * *Example:* "The standard MTS evaluates neighbors one by one. We will use `cupy` to rewrite the energy function to evaluate a batch of 1,000 neighbor flips simultaneously on the GPU."
+
+Classical Acceleration (MTS)
+Our plan is to leverage GPU acceleration to evaluate a larger number of candidate LABS sequences, targeting problem sizes up to (N = 20) in the initial phase. By parallelizing the most computationally intensive components of the Memetic Tabu Search (e.g., neighborhood evaluations and energy computations), we aim to significantly increase the number of configurations explored per unit time. Insights from these GPU‑accelerated runs will guide further algorithmic refinements and heuristics to improve solution quality and time‑to‑solution.
+
 
 ### Hardware Targets
 * **Dev Environment:** [e.g., Qbraid (CPU) for logic, Brev L4 for initial GPU testing]
@@ -102,3 +114,11 @@
 * **Plan:** [How will you avoid burning all your credits?]
     * *Example:* "We will develop entirely on Qbraid (CPU) until the unit tests pass. We will then spin up a cheap L4 instance on Brev for porting. We will only spin up the expensive A100 instance for the final 2 hours of benchmarking."
     * *Example:* "The GPU Acceleration PIC is responsible for manually shutting down the Brev instance whenever the team takes a meal break."
+
+    Resource Management Strategy
+Our goal is to minimize GPU credit usage during prototyping while still enabling effective development on QBraid. We will:
+
+Start on lower-cost QBraid configurations for initial development, debugging, and small-scale experiments.
+Use our local NVIDIA RTX 5080 GPU whenever possible for testing, profiling, and parameter tuning, reserving cloud GPUs only for runs that exceed local capacity.
+Scale up to higher-end cloud GPUs gradually, only after algorithms and parameters are validated on cheaper instances or locally.
+This approach reduces the risk of exhausting credits early in the project and ensures that expensive GPU resources are used primarily for final benchmarking, larger problem sizes, and key experiments.
