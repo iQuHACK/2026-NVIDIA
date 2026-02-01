@@ -143,8 +143,10 @@ __device__ void update_vectorC(int N, int p, int sp_old_val,
 }
 
 __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
-                                      int *global_best_energy,
-                                      uint64_t *seeds) {
+                                      int *global_best_energy, uint64_t *seeds,
+                                      uint32_t *global_best_seq,
+                                      long long *log_time, int *log_energy,
+                                      int *log_count, int *d_lock) {
   // Dynamic shared memory
   extern __shared__ int shared_mem[];
   // Memory Layout:
@@ -431,19 +433,45 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
     // 4. Update Global Best & Population
     if (tid == 0) {
-      atomicMin(global_best_energy, best_child_energy);
+      // Optimistic check first
+      if (best_child_energy < *global_best_energy) {
+        // Acquire lock (simple spinlock)
+        while (atomicCAS(d_lock, 0, 1) != 0)
+          ;
 
-      // Replacement: Replace random individual in population
-      // Or better: Replace worst? Paper says "random individual... is replaced"
+        // Double check inside lock
+        if (best_child_energy < *global_best_energy) {
+          atomicMin(global_best_energy, best_child_energy);
+
+          // Copy Sequence
+          // Note: best_tabu_seq is in shared memory.
+          for (int j = 0; j < ints_per_seq; ++j) {
+            global_best_seq[j] = best_tabu_seq[j];
+          }
+
+          // Log
+          int log_idx = *log_count;
+          if (log_idx < 1000) { // Limit log size to prevent overflow
+            log_time[log_idx] = clock64();
+            log_energy[log_idx] = best_child_energy;
+            *log_count = log_idx + 1;
+          }
+
+          // Check Target
+          if (best_child_energy <= target_energy) {
+            *stop_flag = 1;
+          }
+        }
+
+        // Release lock
+        atomicExch(d_lock, 0);
+      }
+
+      // Replacement: Replace random individual
       int vic_idx = curand(&state) % POP_SIZE;
       for (int j = 0; j < ints_per_seq; ++j)
         pop_seqs[vic_idx * ints_per_seq + j] = best_tabu_seq[j];
       pop_energies[vic_idx] = best_child_energy;
-
-      // Check Target
-      if (best_child_energy <= target_energy) {
-        *stop_flag = 1;
-      }
     }
     __syncthreads();
 

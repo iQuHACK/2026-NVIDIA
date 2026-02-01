@@ -52,6 +52,27 @@ int main(int argc, char **argv) {
                         cudaMemcpyHostToDevice));
 
   // Result storage (best found)
+  // Sequence
+  int ints_per_seq = (N + 31) / 32;
+  uint32_t *d_best_seq;
+  CHECK_CUDA(cudaMalloc(&d_best_seq, ints_per_seq * sizeof(uint32_t)));
+  CHECK_CUDA(cudaMemset(d_best_seq, 0, ints_per_seq * sizeof(uint32_t)));
+
+  // Logging
+  long long *d_log_time;
+  int *d_log_energy;
+  int *d_log_count;
+  int *d_lock;
+
+  CHECK_CUDA(cudaMalloc(&d_log_time, 1000 * sizeof(long long)));
+  CHECK_CUDA(cudaMalloc(&d_log_energy, 1000 * sizeof(int)));
+  CHECK_CUDA(cudaMalloc(&d_log_count, sizeof(int)));
+  CHECK_CUDA(cudaMalloc(&d_lock, sizeof(int)));
+
+  CHECK_CUDA(cudaMemset(d_log_count, 0, sizeof(int)));
+  CHECK_CUDA(cudaMemset(d_lock, 0, sizeof(int)));
+
+  // Result storage (best found)
   int *d_global_best_energy;
   int h_global_best_energy = 9999999;
   CHECK_CUDA(cudaMalloc(&d_global_best_energy, sizeof(int)));
@@ -75,7 +96,6 @@ int main(int argc, char **argv) {
   auto start_time = std::chrono::high_resolution_clock::now();
 
   // Calculate Shared Memory Size
-  int ints_per_seq = (N + 31) / 32;
   int pop_size = 100;
   // Layout matched with kernels.cu:
   // pop_seqs: pop_size * ints_per_seq
@@ -106,7 +126,8 @@ int main(int argc, char **argv) {
 
   // Launch Kernel
   memetic_search_kernel<<<num_blocks, threads_per_block, shared_mem_bytes>>>(
-      N, target_energy, d_stop_flag, d_global_best_energy, d_seeds);
+      N, target_energy, d_stop_flag, d_global_best_energy, d_seeds, d_best_seq,
+      d_log_time, d_log_energy, d_log_count, d_lock);
 
   CHECK_CUDA(cudaGetLastError());
 
@@ -124,9 +145,60 @@ int main(int argc, char **argv) {
     std::cout << "Merit Factor: "
               << (double)(N * N) / (2.0 * h_global_best_energy) << std::endl;
 
+  // Retrieve and print Sequence
+  std::vector<uint32_t> h_best_seq(ints_per_seq);
+  CHECK_CUDA(cudaMemcpy(h_best_seq.data(), d_best_seq,
+                        ints_per_seq * sizeof(uint32_t),
+                        cudaMemcpyDeviceToHost));
+
+  std::cout << "Best Sequence: ";
+  for (int i = 0; i < N; ++i) {
+    int word = i / 32;
+    int bit = i % 32;
+    int val = (h_best_seq[word] >> bit) & 1;
+    std::cout << (val ? "+" : "-");
+  }
+  std::cout << std::endl;
+
+  // Retrieve Logs
+  int h_log_count = 0;
+  CHECK_CUDA(cudaMemcpy(&h_log_count, d_log_count, sizeof(int),
+                        cudaMemcpyDeviceToHost));
+
+  if (h_log_count > 1000)
+    h_log_count = 1000;
+
+  std::vector<long long> h_log_time(h_log_count);
+  std::vector<int> h_log_energy(h_log_count);
+
+  CHECK_CUDA(cudaMemcpy(h_log_time.data(), d_log_time,
+                        h_log_count * sizeof(long long),
+                        cudaMemcpyDeviceToHost));
+  CHECK_CUDA(cudaMemcpy(h_log_energy.data(), d_log_energy,
+                        h_log_count * sizeof(int), cudaMemcpyDeviceToHost));
+
+  std::cout << "ClockRate: " << prop.clockRate * 1000 << " Hz" << std::endl;
+  std::cout << "Convergence History (Cycle, Energy):" << std::endl;
+
+  // Sort logs by time (since parallelism might reorder slightly)
+  // Simple bubble sort or pair sort
+  std::vector<std::pair<long long, int>> logs(h_log_count);
+  for (int i = 0; i < h_log_count; ++i)
+    logs[i] = {h_log_time[i], h_log_energy[i]};
+  std::sort(logs.begin(), logs.end());
+
+  for (const auto &p : logs) {
+    std::cout << p.first << ", " << p.second << std::endl;
+  }
+
   cudaFree(d_stop_flag);
   cudaFree(d_global_best_energy);
   cudaFree(d_seeds);
+  cudaFree(d_best_seq);
+  cudaFree(d_log_time);
+  cudaFree(d_log_energy);
+  cudaFree(d_log_count);
+  cudaFree(d_lock);
 
   return 0;
 }
