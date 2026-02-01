@@ -251,7 +251,7 @@ __global__ void memetic_search_kernel(int N, int target_energy, int *stop_flag,
 
   // Memetic Loop
   int generations = 0;
-  while (!(*stop_flag) && generations < 10000) { // Safety break
+  while (!(*stop_flag) && generations < 1000) { // Safety break
     generations++;
 
     // 2. Selection (Thread 0)
