@@ -90,7 +90,6 @@ spin_ham = labs_spin_op(N)
 n_qubits = N
 
 
-n_qubits = 6 # example
 params = [ 0.05,
     -0.05,
     0.1,
