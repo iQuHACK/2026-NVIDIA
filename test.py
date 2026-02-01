@@ -77,7 +77,7 @@ def run_benchmark():
                     conv_sec = (best_cycle - first_cycle) / clock_rate
                     # If conv_sec is effectively 0 but not exactly, show small number
                     if conv_sec < 0: conv_sec = 0
-                    convergence_time = f"{conv_sec:.10f}"
+                    convergence_time = f"{conv_sec:.12f}"
 
             print(f"{N:<5} {best_e:<10} {convergence_time:<10} {merit:<10} {seq:<20}")
 
