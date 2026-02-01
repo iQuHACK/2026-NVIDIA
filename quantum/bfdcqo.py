@@ -1,73 +1,35 @@
-# ============================================================
-# BF-DCQO (a.k.a. "Bias-field digitized counterdiabatic quantum optimization")
-# for LABS, built to heavily reuse your existing DCQO/LABS notebook code.
-#
-# Drop this into ONE cell. It includes:
-#   - LABS energy() (same as your notebook)
-#   - get_interactions() (same as your notebook)
-#   - your gate blocks (r_yz, r_zy, r_yzzz, r_zyzz, r_zzyz, r_zzzy, etc.)
-#   - a bias-aware trotterized circuit (replaces h(reg) with per-qubit Ry init)
-#   - BF-DCQO outer loop with CVaR-based magnetization update
-#
-
-import math
-import numpy as np
 import cudaq
-
-# If this exists in your repo (as in the notebook), keep it:
-#   theta_val = utils.compute_theta(t, dt, T, N, G2, G4)
-# Otherwise, you must supply an equivalent routine.
+import numpy as np
+from math import floor
 import tutorial_notebook.auxiliary_files.labs_utils as utils
+import time
 
+# TODO FIX LATER IMPORT
+from ... import get_interactions
+from ... import energy
+from classical.mts import MTS
 
-# ----------------------------
-# LABS objective (from notebook)
-# ----------------------------
-def energy(s: np.ndarray) -> np.ndarray:
-    """LABS energy.
-
-    E(s) = sum_{k=1..N-1} C_k(s)^2, where C_k = sum_{i=1..N-k} s_i s_{i+k}
-
-    Supports:
-      - s shape (N,)  -> returns scalar np.int64
-      - s shape (k,N) -> returns (k,) energies
-    """
-    s = np.asarray(s)
-
-    if s.ndim == 1:
-        N = s.shape[0]
-        e = np.int64(0)
-        for shift in range(1, N):
-            ck = int(np.dot(s[: N - shift], s[shift:]))
-            e += np.int64(ck * ck)
-        return e
-
-    if s.ndim == 2:
-        k_pop, N = s.shape
-        e = np.zeros(k_pop, dtype=np.int64)
-        for shift in range(1, N):
-            ck = (s[:, : N - shift] * s[:, shift:]).sum(axis=1, dtype=np.int64)
-            e += ck * ck
-        return e
-
-    raise ValueError("s must be 1D or 2D")
-
-
-# ----------------------------
-# Interaction sets (reused from phase 1)
-# ----------------------------
-def get_interactions(N: int) -> (list, list):
+def get_interactions(N):
     """
     Generates the interaction sets G2 and G4 based on the loop limits in Eq. 15.
     Returns standard 0-based indices as lists of lists of ints.
+   
+    Args:
+        N (int): Sequence length.
+       
+    Returns:
+        G2: List of lists containing two body term indices
+        G4: List of lists containing four body term indices
+        
+    Note: Reused from Phase 1.
     """
+   
     G2 = []
     G4 = []
-
-    # --- Two-body terms ---
+   
     for i in range(N - 2):
-        max_k = (N - i) // 2
-        for k in range(1, max_k + 1):
+        max_k = (N - i) // 2          # depends on i
+        for k in range(1, max_k + 1): # starts at 1 to avoid (i,i)
             G2.append([i, i + k])
 
     # --- Four-body terms ---
@@ -81,320 +43,296 @@ def get_interactions(N: int) -> (list, list):
 
     return G2, G4
 
-# ----------------------------
-# Bitstring conversion (reused from phase 1)
-# ----------------------------
-def bitstring_convert(bitstring: str) -> np.ndarray:
-    """Convert '0/1' string to spins in {-1,+1}, with '1'->+1, '0'->-1."""
-    return np.array([1 if b == '1' else -1 for b in bitstring])   # dtype=np.int8
-
-# TODO: check, new
-def counts_to_spin_matrix(counts) -> np.ndarray:
+def bias_angle(hb: float) -> float:
     """
-    Expand cudaq.sample counts into a (nshots, N) spin matrix in {-1,+1}.
-    This is convenient for CVaR selection / magnetization estimates.
+    Ground-state rotation angle for H = σ_x + hb σ_z.
+    Returns angle for Ry rotation to prepare ground state.
+    From paper: θ_i = 2 tan^{-1}((h_i^b + λ_min) / h_i^b)
+    Simplified for h_x = -1 case.
     """
-    spins = []
-    for bitstring, c in counts.items():
-        s = bitstring_convert(bitstring)
-        for _ in range(int(c)):
-            spins.append(s)
-    if len(spins) == 0:
-        raise RuntimeError("No shots returned by cudaq.sample.")
-    return np.stack(spins, axis=0)
-
-
-# ============================================================
-# Gate blocks (copied from phase1)
-# ============================================================
-@cudaq.kernel
-def r_zz(q0: cudaq.qubit, q1: cudaq.qubit, theta: float):
-    cx(q0, q1)
-    rz(theta, q1)
-    cx(q0, q1)
+    if hb == 0:
+        return np.pi/2  # Ry(pi/2)|0⟩ = |+⟩
+    # For H = -σ_x + hb σ_z, ground state rotation
+    return 2.0 * np.arctan(hb + np.sqrt(hb**2 + 1.0))
 
 @cudaq.kernel
-def r_yz(q0: cudaq.qubit, q1: cudaq.qubit, theta: float):
-    # Y → Z on q0
-    h(q0)
-    s(q0)
-
-    r_zz(q0, q1, 2.0 * theta)
-
-    # Undo basis change
-    s.adj(q0)
-    h(q0)
-
-@cudaq.kernel
-def r_zy(q0: cudaq.qubit, q1: cudaq.qubit, theta: float):
-    # Y → Z on q1
-    h(q1)
-    s(q1)
-
-    r_zz(q0, q1, 2.0 * theta)
-
-    # Undo basis change
-    s.adj(q1)
-    h(q1)
-
-
-@cudaq.kernel
-def r_zzzz(q0: cudaq.qubit,
-          q1: cudaq.qubit,
-          q2: cudaq.qubit,
-          q3: cudaq.qubit,
-          theta: float):
-    cx(q0, q1)
-    cx(q1, q2)
-    cx(q2, q3)
-
-    rz(2.0 * theta, q3)
-
-    cx(q2, q3)
-    cx(q1, q2)
-    cx(q0, q1)
-
-
-@cudaq.kernel
-def r_yzzz(q0: cudaq.qubit,
-           q1: cudaq.qubit,
-           q2: cudaq.qubit,
-           q3: cudaq.qubit,
-           theta: float):
-    s(q0)
-    h(q0)
-
-    r_zzzz(q0, q1, q2, q3, theta)
-
-    s.adj(q0)
-    h(q0)
-
-
-@cudaq.kernel
-def r_zyzz(q0: cudaq.qubit,
-           q1: cudaq.qubit,
-           q2: cudaq.qubit,
-           q3: cudaq.qubit,
-           theta: float):
-    s(q1)
-    h(q1)
-
-    r_zzzz(q0, q1, q2, q3, theta)
-
-    s.adj(q1)
-    h(q1)
-
-
-@cudaq.kernel
-def r_zzyz(q0: cudaq.qubit,
-           q1: cudaq.qubit,
-           q2: cudaq.qubit,
-           q3: cudaq.qubit,
-           theta: float):
-    s(q2)
-    h(q2)
-
-    r_zzzz(q0, q1, q2, q3, theta)
-
-    s.adj(q2)
-    h(q2)
-
-
-@cudaq.kernel
-def r_zzzy(q0: cudaq.qubit,
-           q1: cudaq.qubit,
-           q2: cudaq.qubit,
-           q3: cudaq.qubit,
-           theta: float):
-    s(q3)
-    h(q3)
-    r_zzzz(q0, q1, q2, q3, theta)
-    s.adj(q3)
-    h(q3)
-
-# ============================================================
-# BF-DCQO additions
-# ============================================================
-def bias_ground_state_angles(hb: np.ndarray, hx: float = 1.0) -> np.ndarray:
+def biased_trotter_circuit(N: int, angles: list[float], G2: list[list[int]], 
+                          G4: list[list[int]], steps: int, dt: float, 
+                          theta_cutoff: float,
+                          T: float, thetas: list[float]):
     """
-    Prepare the product ground state of (hx * X - hb_j * Z) for each qubit
-    as Ry(theta_j)|0>. A consistent choice is:
-        theta_j = atan2(-hx, hb_j)
+    Trotterized circuit with bias-field initialization.
+    Combines your existing circuit with bias preparation.
     """
-    hb = np.asarray(hb, dtype=float)
-    return np.arctan2(-hx * np.ones_like(hb), hb)
-
-
-def cvar_subset(spins: np.ndarray, energies: np.ndarray, alpha: float) -> (np.ndarray, np.ndarray):
-    """
-    CVaR subset: keep lowest-energy ceil(alpha*nshots) shots.
-    """
-    if not (0.0 < alpha <= 1.0):
-        raise ValueError("alpha must be in (0, 1].")
-    nshots = energies.shape[0]
-    m = max(1, int(math.ceil(alpha * nshots)))
-    idx = np.argsort(energies)[:m]
-    return spins[idx], energies[idx]
-
-
-def estimate_magnetization(spins_sub: np.ndarray) -> np.ndarray:
-    """
-    For Z-basis measurements with spins in {-1,+1}:
-        <Z_j> = mean(spins[:, j])
-    """
-    return spins_sub.mean(axis=0)
-
-
-def update_bias(exp_z: np.ndarray, mode: str = "unsigned", sign: str = "bias", kappa: float = 1.0) -> np.ndarray:
-    """
-    Bias update rule.
-      mode: "unsigned" => hb_j =  ± <Z_j>
-            "signed"   => hb_j =  ± sign(<Z_j>)
-      sign: "bias"     => choose the '-' convention used in the paper (aligning with preferred orientation)
-            "antibias" => '+'
-      kappa: optional scaling (e.g., final iteration uses kappa=5)
-    """
-    if sign not in ("bias", "antibias"):
-        raise ValueError("sign must be 'bias' or 'antibias'.")
-    sgn = -1.0 if sign == "bias" else 1.0
-
-    if mode == "unsigned":
-        hb = sgn * exp_z
-    elif mode == "signed":
-        hb = sgn * np.sign(exp_z)
-    else:
-        raise ValueError("mode must be 'unsigned' or 'signed'.")
-
-    return kappa * hb
-
-
-# ============================================================
-# Bias-aware DCQO circuit: same as your trotterized_circuit,
-# but replace h(reg) with per-qubit Ry initialization.
-# Optional theta_cutoff to skip tiny angles.
-# ============================================================
-@cudaq.kernel
-def trotterized_circuit_bf(
-    N: int,
-    G2: list[list[int]],
-    G4: list[list[int]],
-    steps: int,
-    dt: float,
-    T: float,
-    thetas: list[float],
-    ry_init: list[float],
-    theta_cutoff: float
-):
-    reg = cudaq.qvector(N)
-
-    # --- BF-DCQO: biased initial state (instead of h(reg)) ---
+    # theta_cutoff = 0.05 # TODO: change?
+    q = cudaq.qvector(N)
+    
+    # Initialize with bias-field rotations (Eq. 9 in paper)
     for i in range(N):
-        ry(ry_init[i], reg[i])
-
+        ry(angles[i], q[i])
+    
+    # Apply trotterized counterdiabatic evolution
     for s in range(steps):
         theta = thetas[s]
 
+        # discard an angle if it's too small
+        if theta < theta_cutoff:
+            continue
+        
         # 2-body block
         for pair in G2:
             i = pair[0]
             j = pair[1]
-            ang = -4.0 * theta
-            if abs(ang) >= theta_cutoff:
-                r_yz(reg[i], reg[j], ang)
-                r_zy(reg[i], reg[j], ang)
-
+            # hx=-1
+            r_yz(q[i], q[j], -4.0 * theta)
+            r_zy(q[i], q[j], -4.0 * theta)
+            
         # 4-body block
         for quad in G4:
             a, b, c, d = quad[0], quad[1], quad[2], quad[3]
-            ang = -8.0 * theta
-            if abs(ang) >= theta_cutoff:
-                r_yzzz(reg[a], reg[b], reg[c], reg[d], ang)
-                r_zyzz(reg[a], reg[b], reg[c], reg[d], ang)
-                r_zzyz(reg[a], reg[b], reg[c], reg[d], ang)
-                r_zzzy(reg[a], reg[b], reg[c], reg[d], ang)
+            # hx=-1
+            r_yzzz(q[a], q[b], q[c], q[d], -8.0 * theta)
+            r_zyzz(q[a], q[b], q[c], q[d], -8.0 * theta)
+            r_zzyz(q[a], q[b], q[c], q[d], -8.0 * theta)
+            r_zzzy(q[a], q[b], q[c], q[d], -8.0 * theta)
 
-
-# ============================================================
-# BF-DCQO main driver
-# ============================================================
-def bf_dcqo_labs(
-    N: int,
-    n_iters: int = 11,
-    n_steps: int = 3,
-    T: float = 1.0,
-    nshots: int = 10_000,
-    alpha: float = 0.01,              # CVaR fraction
-    hx: float = 1.0,                  # transverse-field strength used in Ry init angle formula
-    theta_cutoff: float = 0.0,        # gate pruning
-    final_signed: bool = True,
-    final_kappa: float = 5.0,         # stronger signed bias on the last iter
-    bias_sign: str = "bias"           # "bias" or "antibias"
-):
+def run_biased_circuit(N: int, angles: np.ndarray, T: float, 
+                       shots: int, n_steps: int,
+                       theta_cutoff: float) -> Tuple[np.ndarray, np.ndarray]:
     """
+    Run the biased trotterized circuit and return samples.
+    
+    Args:
+        N: Problem size
+        angles: Ry rotation angles for each qubit (from bias fields)
+        T: Total evolution time
+        n_steps: Number of Trotter steps
+        shots: Number of measurements
+        theta_cutoff: Discard gates with angles below this threshold
+    
     Returns:
-      best_spin (N,) in {-1,+1}
-      best_energy (int)
-      history (list of dicts) with per-iter diagnostics
+        bitstrings: Array of shape (shots, N) in {0, 1}
+        energies: Array of shape (shots,) with LABS energies
     """
+    # Get interactions
     G2, G4 = get_interactions(N)
     dt = T / n_steps
+    
+    # Compute theta values for each Trotter step
+    thetas = []
+    for step in range(1, n_steps + 1):
+        t = step * dt
+        # Using utils.compute_theta as in your notebook
+        theta_val = utils.compute_theta(t, dt, T, N, G2, G4)
+        thetas.append(theta_val)
+    
+    # Sample from circuit
+    counts = cudaq.sample(
+        biased_trotter_circuit, 
+        N, angles.tolist(), G2, G4, n_steps, dt, T, thetas, 
+        theta_cutoff=theta_cutoff,
+        shots_count=shots
+    )
+    
+    # Convert to numpy arrays
+    bitstrings = []
+    energies = []
+    
+    for bitstr, count in counts.items():
+        # Convert bitstring to array
+        bits = np.array([int(b) for b in bitstr], dtype=int)
+        # Convert to spins {+1, -1}
+        spins = 1 - 2 * bits
+        # Compute energy
+        E = energy(spins)
+        
+        for _ in range(count):
+            bitstrings.append(bits)
+            energies.append(E)
+            
+            if len(bitstrings) >= shots:
+                break
+        if len(bitstrings) >= shots:
+            break
+    
+    # Pad if needed
+    while len(bitstrings) < shots:
+        bitstrings.append(np.zeros(N, dtype=int))
+        energies.append(float('inf'))
+    
+    return np.array(bitstrings[:shots]), np.array(energies[:shots])
 
-    hb = np.zeros(N, dtype=float)  # bias fields start at 0
-
-    best_E = None
-    best_s = None
-    history = []
-
-    for it in range(n_iters):
-        # --- compute DCQO thetas (reusing your notebook approach) ---
-        thetas = []
-        for step in range(1, n_steps + 1):
-            t = step * dt
-            theta_val = utils.compute_theta(t, dt, T, N, G2, G4)
-            thetas.append(float(theta_val))
-
-        # --- biased init angles ---
-        ry_init = bias_ground_state_angles(hb, hx=hx).tolist()
-
-        # --- sample circuit ---
-        counts = cudaq.sample(
-            trotterized_circuit_bf,
-            N, G2, G4, n_steps, dt, T,
-            thetas,
-            ry_init,
-            float(theta_cutoff),
-            shots_count=int(nshots)
+def bf_dcqo_sampler(N: int, n_iter: int, n_shots: int, 
+                   alpha: float, kappa: float,
+                   T: float, n_steps: int,
+                   theta_cutoff: float) -> Tuple[np.ndarray, List[float]]:
+    """
+    Bias-Field Digitized Counterdiabatic Quantum Optimization sampler.
+    Based on Algorithm 1 in the paper.
+    
+    Args:
+        N: Problem size
+        n_iter: Number of BF-DCQO iterations
+        n_shots: Number of measurements per iteration
+        alpha: CVaR fraction (e.g., 0.01 = best 1%)
+        kappa: Strength of final signed bias
+        T: Total evolution time
+        n_steps: Number of Trotter steps
+        theta_cutoff: Gate cutoff threshold
+        
+    Returns:
+        samples: Best samples from final iteration (spins in {+1, -1})
+        energy_history: Best energy at each iteration
+    """
+    # Initialize bias fields
+    h_b = np.zeros(N)
+    energy_history = []
+    all_samples = []
+    
+    for iteration in range(n_iter):
+        print(f"[BF-DCQO] Iteration {iteration+1}/{n_iter}")
+        
+        # 1. Prepare biased initial state
+        angles = np.array([bias_angle(hb) for hb in h_b])
+        
+        # 2. Run quantum circuit
+        bitstrings, energies = run_biased_circuit(
+            N, angles, T=T, n_steps=n_steps, shots=n_shots, 
+            theta_cutoff=theta_cutoff
         )
 
-        # --- evaluate energies ---
-        spins = counts_to_spin_matrix(counts)         # (nshots, N)
-        Es = energy(spins)                            # (nshots,)
+        # 3. Convert to -1, 1
+        samples = 1 - 2 * bitstrings
+        
+        # 4. CVaR filtering (keep best alpha fraction)
+        k = max(1, int(alpha * n_shots))
+        elite_idx = np.argsort(energies)[:k]
+        elite_samples = samples[elite_idx]
+        elite_energies = energies[elite_idx]
+        
+        # 5. Compute ⟨σ_z⟩ per qubit from elite samples
+        mean_z = elite_samples.mean(axis=0)  # shape (N,)
 
-        # track best-so-far
-        i_best = int(np.argmin(Es))
-        cur_best_E = int(Es[i_best])
-        if best_E is None or cur_best_E < best_E:
-            best_E = cur_best_E
-            best_s = spins[i_best].copy()
-
-        # --- CVaR subset for magnetization learning ---
-        spins_sub, Es_sub = cvar_subset(spins, Es, alpha=alpha)
-        exp_z = estimate_magnetization(spins_sub)
-
-        # --- bias update ---
-        is_last = (it == n_iters - 1)
-        if final_signed and is_last:
-            hb = update_bias(exp_z, mode="signed", sign=bias_sign, kappa=final_kappa)
+        # DEBUG
+        # print("MEAN", mean_z)
+        
+        # 6. Update bias fields (different strategies)
+        if iteration < n_iter - 1:
+            # Unsigned bias for exploration (learning phase)
+            h_b = mean_z
+            strategy = "unsigned"
         else:
-            hb = update_bias(exp_z, mode="unsigned", sign=bias_sign, kappa=1.0)
+            # Final iteration: strong signed bias for convergence
+            h_b = kappa * np.sign(mean_z)
+            strategy = "signed (κ={})".format(kappa)
+        
+        # Track best energy
+        best_energy = np.min(energies)
+        energy_history.append(best_energy)
+        all_samples.append(samples)
+        
+        print(f"  Strategy: {strategy}")
+        print(f"  Best energy: {best_energy}")
+        print(f"  Mean |h_b|: {np.mean(np.abs(h_b)):.3f}")
+        print(f"  CVaR fraction: {alpha} ({k} samples)")
+    
+    # Return samples from final iteration
+    return all_samples[-1], energy_history
 
-        history.append({
-            "iter": it + 1,
-            "best_energy_seen": int(best_E),
-            "cvar_mean_energy": float(np.mean(Es_sub)),
-            "cvar_min_energy": int(np.min(Es_sub)),
-            "hb": hb.copy(),
-            "exp_z": exp_z.copy(),
-        })
+def quantum_enhanced_mts(N: int, pop_size: int, 
+                        bf_dcqo_iter: int, mts_iter: int,
+                        quantum_shots: int, alpha: float,
+                        kappa: float, T: float, theta_cutoff: float,
+                        use_cvar: bool = True) -> dict:
+    """
+    Complete quantum-enhanced MTS workflow.
+    
+    1. Generate initial population with BF-DCQO
+    2. Refine with MTS
+    3. Return comprehensive results
+    
+    Returns dictionary with timing and performance metrics.
+    """
+    results = {
+        'N': N,
+        'pop_size': pop_size,
+        'timing': {},
+        'energies': {},
+        'solution': None
+    }
 
-    return best_s, best_E, history
+    # print("sanity check of input")
+    # print(N, pop_size, bf_dcqo_iter, mts_iter, quantum_shots, alpha, kappa, T)
+    
+    # Phase 1: BF-DCQO for initial population
+    print("\n" + "="*60)
+    print("PHASE 1: BF-DCQO Quantum Sampling")
+    print("="*60)
+    
+    start_time = time.perf_counter()
+    quantum_samples, bf_dcqo_energies = bf_dcqo_sampler(
+        N, n_iter=bf_dcqo_iter, n_shots=quantum_shots,
+        alpha=alpha, kappa=kappa, T=T, 
+        n_steps=100, theta_cutoff=theta_cutoff
+    )
+    end_time = time.perf_counter()
+    bf_dcqo_time = end_time - start_time
+    
+    # Select diverse samples for population
+    population = []
+    if len(quantum_samples) > pop_size:
+        # Select based on energy and diversity
+        energies = np.array([energy(s) for s in quantum_samples])
+        elite_idx = np.argsort(energies)[:pop_size]
+        population = quantum_samples[elite_idx]
+    else:
+        population = quantum_samples
+
+    # print("DEBUG POPULATION", population)
+    
+    results['timing']['bf_dcqo'] = bf_dcqo_time
+    results['energies']['bf_dcqo'] = bf_dcqo_energies
+    results['bf_dcqo_best'] = min(bf_dcqo_energies)
+    
+    # Phase 2: MTS refinement
+    print("\n" + "="*60)
+    print("PHASE 2: Memetic Tabu Search Refinement")
+    print("="*60)
+    
+    start_time = time.perf_counter()
+    best_s, best_E, final_pop, final_energies, mts_history = MTS(
+        k=len(population), N=N, max_iter=mts_iter, population0=population
+    )
+    end_time = time.perf_counter()
+    mts_time = end_time - start_time
+    # print("DEBUG ENERGIES", best_E)
+    # print("DEBUG S", best_s)
+    
+    results['timing']['mts'] = mts_time
+    results['timing']['total'] = bf_dcqo_time + mts_time
+    results['energies']['mts'] = mts_history
+    results['solution'] = {
+        'bitstring': best_s,
+        'energy': best_E
+    }
+    results['population'] = final_pop
+    results['population_energies'] = final_energies
+    
+    # Calculate speedup metrics
+    print("\n" + "="*60)
+    print("PERFORMANCE SUMMARY")
+    print("="*60)
+    print(f"Problem size: N = {N}")
+    print(f"Population size: {pop_size}")
+    print(f"BF-DCQO iterations: {bf_dcqo_iter}")
+    print(f"MTS iterations: {mts_iter}")
+    print(f"\nTiming:")
+    print(f"  BF-DCQO: {bf_dcqo_time:.2f} seconds")
+    print(f"  MTS: {mts_time:.2f} seconds")
+    print(f"  Total: {results['timing']['total']:.2f} seconds")
+    print(f"\nEnergies:")
+    print(f"  BF-DCQO best: {min(bf_dcqo_energies)}")
+    print(f"  MTS final best: {best_E}")
+    print(f"  Improvement: {(min(bf_dcqo_energies) - best_E)/abs(min(bf_dcqo_energies))*100:.1f}%")
+    
+    return results
