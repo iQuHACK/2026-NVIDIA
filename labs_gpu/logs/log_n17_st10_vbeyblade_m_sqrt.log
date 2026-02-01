@@ -1,0 +1,31 @@
+=== BEYBLADE BENCHMARK ===
+N: 17
+Method: sqrt
+Steps: 10
+--- SIMULATION STDOUT ---
+
+=== Quantum LABS Simulation (BEYBLADE) ===
+N=17, Shots=100000, Steps=10, Lambda=sqrt
+Simulation Complete. Candidates exported to warm_starts/warm_n17_st10_vbeyblade_m_sqrt.bin
+
+--- SIMULATION STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n17_st10_vbeyblade_m_sqrt.bin
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=17, Target=32) ---
+
+============================================================
+RESULTS FOR N=17
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        32 (Target: 32)
+Direct TTS (sec):   0.0007 s
+Total Moves:        8192000
+Equivalent Evals:   139264000
+Throughput:         11630.5814 M-Moves/sec
+Best Bitstring:     10010100110000011
+============================================================
+
+--- RUNOPT STDERR ---
+

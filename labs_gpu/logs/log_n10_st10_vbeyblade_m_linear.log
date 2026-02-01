@@ -1,0 +1,31 @@
+=== BEYBLADE BENCHMARK ===
+N: 10
+Method: linear
+Steps: 10
+--- SIMULATION STDOUT ---
+
+=== Quantum LABS Simulation (BEYBLADE) ===
+N=10, Shots=100000, Steps=10, Lambda=linear
+Simulation Complete. Candidates exported to warm_starts/warm_n10_st10_vbeyblade_m_linear.bin
+
+--- SIMULATION STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n10_st10_vbeyblade_m_linear.bin
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=10, Target=13) ---
+
+============================================================
+RESULTS FOR N=10
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        13 (Target: 13)
+Direct TTS (sec):   0.0004 s
+Total Moves:        8192000
+Equivalent Evals:   81920000
+Throughput:         20419.1509 M-Moves/sec
+Best Bitstring:     1010011000
+============================================================
+
+--- RUNOPT STDERR ---
+

@@ -1,0 +1,17 @@
+=== STARTING ONE_SHOT.PY: 2026-02-01 07:15:30.436607 ===
+Command: python one_shot.py --n 0 --shots 100000 --popsize 128 --steps 2 --variant jenga --output outputs/out_n0_s100000_p128_st2_vjenga.txt
+
+
+=== Quantum LABS Simulation (JENGA) ===
+N=0, Shots=100000, Steps=2
+Computing Counter-Diabatic (CD) angles...
+Running Kernel: jenga (Single Run)...
+RuntimeError: numWiresToAdd should be a positive integer.
+
+
+=== STARTING RUNOPT: 2026-02-01 07:15:31.984787 ===
+Command: ./runopt 0 8192 1M outputs/out_n0_s100000_p128_st2_vjenga.txt
+
+Running LABS Solver: N=0, PopSize=8192, Iters=1, WarmStart=outputs/out_n0_s100000_p128_st2_vjenga.txt
+------------------------------------------------------------
+Error: Cannot open warm start file: outputs/out_n0_s100000_p128_st2_vjenga.txt

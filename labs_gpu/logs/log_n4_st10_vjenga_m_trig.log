@@ -1,0 +1,31 @@
+=== JENGA BENCHMARK ===
+N: 4
+Method: trig
+Steps: 10
+--- SIMULATION STDOUT ---
+
+=== Quantum LABS Simulation (JENGA) ===
+N=4, Shots=100000, Steps=10, Lambda=trig
+Simulation Complete. Candidates exported to warm_starts/warm_n4_st10_vjenga_m_trig.bin
+
+--- SIMULATION STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n4_st10_vjenga_m_trig.bin
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=4, Target=2) ---
+
+============================================================
+RESULTS FOR N=4
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        2 (Target: 2)
+Direct TTS (sec):   0.0003 s
+Total Moves:        8192000
+Equivalent Evals:   32768000
+Throughput:         32704.0309 M-Moves/sec
+Best Bitstring:     1101
+============================================================
+
+--- RUNOPT STDERR ---
+

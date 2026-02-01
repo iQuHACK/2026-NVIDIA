@@ -1,0 +1,16 @@
+--- ONE_SHOT OUTPUT ---
+
+=== Quantum LABS Simulation (DNA) ===
+N=0, Shots=100000, Steps=2
+Computing Counter-Diabatic angles...
+Running Kernel: dna (Single Run)...
+
+RuntimeError: numWiresToAdd should be a positive integer.
+
+
+--- RUNOPT OUTPUT ---
+
+Error: Cannot open warm start file: warm_starts/warm_n0_st2_vdna.txt
+
+
+Parsed Equiv Evals: N/A

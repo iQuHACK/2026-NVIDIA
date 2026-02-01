@@ -1,0 +1,31 @@
+=== BEYBLADE BENCHMARK ===
+N: 10
+Method: trig
+Steps: 100
+--- SIMULATION STDOUT ---
+
+=== Quantum LABS Simulation (BEYBLADE) ===
+N=10, Shots=100000, Steps=10, Lambda=trig
+Simulation Complete. Candidates exported to warm_starts/warm_n10_st100_vbeyblade_m_trig.bin
+
+--- SIMULATION STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n10_st100_vbeyblade_m_trig.bin
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=10, Target=13) ---
+
+============================================================
+RESULTS FOR N=10
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        13 (Target: 13)
+Direct TTS (sec):   0.0004 s
+Total Moves:        8192000
+Equivalent Evals:   81920000
+Throughput:         20285.9145 M-Moves/sec
+Best Bitstring:     0110111000
+============================================================
+
+--- RUNOPT STDERR ---
+

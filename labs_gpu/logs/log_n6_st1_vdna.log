@@ -1,0 +1,42 @@
+=== RUN DATA ===
+N: 6
+Variant: dna
+Steps: 1
+
+--- ONE_SHOT STDOUT ---
+
+=== Quantum LABS Simulation (DNA) ===
+N=6, Shots=100000, Steps=1
+Computing Counter-Diabatic angles...
+Running Kernel: dna (Single Run)...
+Collected 64 elite candidates from 100000 shots.
+--> Exporting 64 samples to 'warm_starts/warm_n6_st1_vdna.txt' (Target Size: 128)...
+=== Complete ===
+
+
+--- ONE_SHOT STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n6_st1_vdna.txt
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=6, Target=7) ---
+
+============================================================
+RESULTS FOR N=6
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        7 (Target: 7)
+Direct TTS (sec):   0.0003 s
+Total Moves:        8192000
+Equivalent Evals:   49152000
+Throughput:         29750.0372 M-Moves/sec
+Best Bitstring:     100111
+============================================================
+
+--- RUNOPT STDERR ---
+
+
+PARSED METRICS:
+Total Moves: 8192000
+Equiv Evals: 49152000
+Best Bitstring: 100111

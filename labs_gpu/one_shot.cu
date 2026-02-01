@@ -247,15 +247,8 @@ int main(int argc, char** argv) {
     long long MAX_ITERS_PER_N = (argc > 3) ? atoll(argv[3]) : 1000000;
     std::string warm_start_file = (argc > 4) ? argv[4] : "";
 
-    std::cout << "Running LABS Solver: N=" << target_N 
-              << ", PopSize=" << pop_size 
-              << ", Iters=" << MAX_ITERS_PER_N;
-    if (!warm_start_file.empty()) std::cout << ", WarmStart=" << warm_start_file;
-    std::cout << std::endl << std::string(60, '-') << std::endl;
-
-    // 1. Allocations
+    // 1. Setup & Allocations
     int8_t *d_pop; long long *d_energies; curandState *d_states; int *d_elites;
-    
     CUDA_CHECK(cudaMalloc(&d_pop, pop_size * MAX_N));
     CUDA_CHECK(cudaMalloc(&d_energies, pop_size * 8));
     CUDA_CHECK(cudaMalloc(&d_states, pop_size * sizeof(curandState)));
@@ -265,54 +258,99 @@ int main(int argc, char** argv) {
     size_t total_pop_bytes = pop_size * MAX_N;
     int target_e = TARGETS[target_N];
     long long current_best = LLONG_MAX;
-    
-    // 2. Init Random (Fills entire population with noise first)
+
+    // 2. Initialize (Excluded from TTS)
     int init_grid = (pop_size + THREADS - 1) / THREADS;
     init_kernel<<<init_grid, THREADS>>>(target_N, pop_size, d_pop, d_states, (unsigned long)time(NULL));
     CUDA_CHECK(cudaDeviceSynchronize());
 
-    // 3. Inject Elites (Overwrites the start of the array)
     if (!warm_start_file.empty()) {
         load_warm_start_partial(warm_start_file.c_str(), d_pop, total_pop_bytes);
     }
+    
+    std::cout << "--- Starting Optimization (N=" << target_N << ", Target=" << target_e << ") ---" << std::endl;
 
-    // 4. Optimization Loop
+    // 3. START TIMER (Direct TTS Measurement)
     auto start_timer = std::chrono::high_resolution_clock::now();
+    
     long long iter_count = 0;
     bool success = false;
+    int best_idx = 0; // Track the index of the best individual
 
     while (iter_count < MAX_ITERS_PER_N) {
+        // A. Tabu Search Step
         tabu_kernel<<<pop_size, THREADS, smem>>>(target_N, MEMETIC_FREQ, d_pop, d_states);
+        
+        // B. Energy Verification
         verify_kernel<<<pop_size, THREADS>>>(target_N, d_pop, d_energies);
         CUDA_CHECK(cudaDeviceSynchronize());
 
+        // C. Check for Solution
         std::vector<long long> h_e(pop_size);
         cudaMemcpy(h_e.data(), d_energies, pop_size * 8, cudaMemcpyDeviceToHost);
         
+        // Fast sort to find best
         std::vector<int> idx(pop_size); 
         std::iota(idx.begin(), idx.end(), 0);
         std::sort(idx.begin(), idx.end(), [&](int a, int b) { return h_e[a] < h_e[b]; });
 
-        current_best = h_e[idx[0]];
+        best_idx = idx[0]; // Update best index
+        current_best = h_e[best_idx];
         iter_count += MEMETIC_FREQ;
 
-        if (current_best <= target_e) { success = true; break; }
+        // D. Success Condition
+        if (current_best <= target_e) { 
+            success = true; 
+            break; // Stop timer immediately on success
+        }
 
+        // E. Crossover (if not solved yet)
         cudaMemcpy(d_elites, idx.data(), ELITE_COUNT * 4, cudaMemcpyHostToDevice);
         crossover_kernel<<<pop_size, THREADS>>>(target_N, d_pop, d_elites, d_states);
-        
-        if (iter_count % (MEMETIC_FREQ * 50) == 0) {
-             std::cout << "Iter=" << iter_count/1e6 << "M Best=" << current_best << "\r" << std::flush;
-        }
     }
 
+    // 4. STOP TIMER
     auto end_timer = std::chrono::high_resolution_clock::now();
-    double dur = std::chrono::duration<double>(end_timer - start_timer).count();
-    double moves_m = (double)pop_size * iter_count / 1e6;
+    double wall_time_seconds = std::chrono::duration<double>(end_timer - start_timer).count();
 
-    std::cout << std::left << std::setw(5) << target_N << std::setw(10) << target_e 
-              << std::setw(10) << current_best << std::setw(10) << (success ? "PASS" : "FAIL") 
-              << std::fixed << std::setprecision(3) << std::setw(12) << dur << moves_m << std::endl;
+    // 5. Calculate Metrics
+    unsigned long long total_moves = (unsigned long long)iter_count * (unsigned long long)pop_size;
+    unsigned long long total_evals = total_moves * (unsigned long long)target_N;
+
+    std::cout << "\n" << std::string(60, '=') << std::endl;
+    std::cout << "RESULTS FOR N=" << target_N << std::endl;
+    std::cout << std::string(60, '-') << std::endl;
+    std::cout << "Status:             " << (success ? "SUCCESS" : "TIMEOUT") << std::endl;
+    std::cout << "Best Energy:        " << current_best << " (Target: " << target_e << ")" << std::endl;
+    
+    if (success) {
+        std::cout << "Direct TTS (sec):   " << std::fixed << std::setprecision(4) << wall_time_seconds << " s" << std::endl;
+    } else {
+        std::cout << "Runtime (sec):      " << std::fixed << std::setprecision(4) << wall_time_seconds << " s (Not Solved)" << std::endl;
+    }
+
+    std::cout << "Total Moves:        " << total_moves << std::endl;
+    std::cout << "Equivalent Evals:   " << total_evals << std::endl;
+    std::cout << "Throughput:         " << (total_moves / wall_time_seconds) / 1e6 << " M-Moves/sec" << std::endl;
+    
+    // ---------------------------------------------------------------------
+    // 6. Retrieve and Print Best Sequence
+    // ---------------------------------------------------------------------
+    std::vector<int8_t> h_best_seq(target_N);
+    // Copy the specific individual from the GPU population array
+    // Note: Stride is MAX_N, not target_N
+    CUDA_CHECK(cudaMemcpy(h_best_seq.data(), 
+                          d_pop + (best_idx * MAX_N), 
+                          target_N * sizeof(int8_t), 
+                          cudaMemcpyDeviceToHost));
+
+    std::cout << "Best Bitstring:     ";
+    for (int i = 0; i < target_N; i++) {
+        // Convert +/-1 notation to 1/0 notation
+        std::cout << (h_best_seq[i] > 0 ? "1" : "0");
+    }
+    std::cout << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
 
     cudaFree(d_pop); cudaFree(d_energies); cudaFree(d_states); cudaFree(d_elites);
     return 0;

@@ -1,0 +1,3 @@
+=== STARTING ONE_SHOT.PY: 2026-02-01 07:15:39.892785 ===
+Command: python one_shot.py --n 1 --shots 100000 --popsize 128 --steps 1 --variant jenga --output outputs/out_n1_s100000_p128_st1_vjenga.txt
+

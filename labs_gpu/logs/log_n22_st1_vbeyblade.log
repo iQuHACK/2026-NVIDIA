@@ -1,0 +1,42 @@
+=== RUN DATA ===
+N: 22
+Variant: beyblade
+Steps: 1
+
+--- ONE_SHOT STDOUT ---
+
+=== Quantum LABS Simulation (BEYBLADE) ===
+N=22, Shots=100000, Steps=1
+Computing Counter-Diabatic angles...
+Running Kernel: beyblade (Single Run)...
+Collected 128 elite candidates from 100000 shots.
+--> Exporting 128 samples to 'warm_starts/warm_n22_st1_vbeyblade.txt' (Target Size: 128)...
+=== Complete ===
+
+
+--- ONE_SHOT STDERR ---
+
+--- RUNOPT STDOUT ---
+>>> Injected 128 Elite Candidates from warm_starts/warm_n22_st1_vbeyblade.txt
+>>> Remaining 8064 are Random.
+--- Starting Optimization (N=22, Target=39) ---
+
+============================================================
+RESULTS FOR N=22
+------------------------------------------------------------
+Status:             SUCCESS
+Best Energy:        39 (Target: 39)
+Direct TTS (sec):   0.0036 s
+Total Moves:        8192000
+Equivalent Evals:   180224000
+Throughput:         2305.7305 M-Moves/sec
+Best Bitstring:     0101000000011100110110
+============================================================
+
+--- RUNOPT STDERR ---
+
+
+PARSED METRICS:
+Total Moves: 8192000
+Equiv Evals: 180224000
+Best Bitstring: 0101000000011100110110

@@ -1,0 +1,16 @@
+--- ONE_SHOT OUTPUT ---
+
+=== Quantum LABS Simulation (BEYBLADE) ===
+N=0, Shots=100000, Steps=1
+Computing Counter-Diabatic angles...
+Running Kernel: beyblade (Single Run)...
+
+RuntimeError: numWiresToAdd should be a positive integer.
+
+
+--- RUNOPT OUTPUT ---
+
+Error: Cannot open warm start file: warm_starts/warm_n0_st1_vbeyblade.txt
+
+
+Parsed Equiv Evals: N/A

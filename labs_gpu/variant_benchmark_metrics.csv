@@ -1,0 +1,2 @@
+N,variant,lambda_method,steps,one_shot_time,runopt_time,total_time,one_shot_status,runopt_status,total_moves,equiv_evals,best_bitstring,warm_start_file
+3,default,trig,10,1.4540,0.2710,1.7250,2,1,0,0,N/A,warm_starts/warm_n3_st10_vdefault_m_trig.bin
