@@ -268,17 +268,27 @@ if not args.mpi or cudaq.mpi.rank() == 0:
     samples = cudaq.sample(sample_optimized, opt_coeffs, opt_words, shots_count=shots)
 
     # samples is a cudaq.SampleResult object (dict-like: bitstring -> count)
-    from collections import Counter
-    # Convert SampleResult to a Counter directly
-    counts = Counter(dict(samples.items()))
+    # from collections import Counter
+    # # Convert SampleResult to a Counter directly
+    # counts = Counter(dict(samples.items()))
 
-    print("10 most frequent bitstrings:")
-    print(counts.most_common(10))
+    # print("10 most frequent bitstrings:")
+    # print(counts.most_common(10))
 
-    # Calculate energy for each unique bitstring found (converting string to list of ints)
-    sample_energies = [labs_energy([int(c) for c in b]) for b in counts.keys()]
-    print("Minimum sampled LABS energy:", min(sample_energies))
+    # # Calculate energy for each unique bitstring found (converting string to list of ints)
+    # sample_energies = [labs_energy([int(c) for c in b]) for b in counts.keys()]
+    # print("Minimum sampled LABS energy:", min(sample_energies))
 
+    probs = np.abs(state) ** 2
+
+    energies = []
+    for i, p in enumerate(probs):
+        if p < 1e-6:
+            continue
+        bit = [int(c) for c in f"{i:0{n_qubits}b}"]
+        energies.append(labs_energy(bit))
+
+    print("Minimum LABS energy supported by state:", min(energies))
 
 
 
