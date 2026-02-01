@@ -195,13 +195,7 @@ def bitstring_convert(bitstring: str) -> np.ndarray:
     return np.array([1 if b == '1' else -1 for b in bitstring])
 
 
-def quantum_population(
-    popsize: int = 100,
-    T: int = 1,
-    n_steps: int = 3,
-    N: int = 11,
-    shots_count: int = 1000,
-) -> list:
+def quantum_population(popsize: int=100, T: int=1, n_steps: int=3, N: int=11) -> list:
     """
     Generate the quantum enhanced population
 
@@ -220,17 +214,7 @@ def quantum_population(
         thetas.append(theta_val)
         
     # generate samples
-    samples = cudaq.sample(
-        trotterized_circuit,
-        N,
-        G2,
-        G4,
-        n_steps,
-        dt,
-        T,
-        thetas,
-        shots_count=int(shots_count),
-    )
+    samples = cudaq.sample(trotterized_circuit, N, G2, G4, n_steps, dt, T, thetas, shots_count=1000)
 
     population = []
     for bitstring, count in samples.items():
@@ -254,7 +238,7 @@ def qe_mts(population):
     return MTS(len(population), N, population0 = population)
 
 
-def generate_qemts_data(Ns, popsize=100, T=1, n_steps=3, shots_count: int = 1000):
+def generate_qemts_data(Ns, popsize=100, T=1, n_steps=3):
     """
     Generate data for best energies and time to convergence for
     different values of N
@@ -272,7 +256,7 @@ def generate_qemts_data(Ns, popsize=100, T=1, n_steps=3, shots_count: int = 1000
 
     for n in Ns:
         # run QE-MTS
-        quantum_init = quantum_population(popsize, T, n_steps, n, shots_count=shots_count)
+        quantum_init = quantum_population(popsize, T, n_steps, n)
         quantum_final = MTS(len(quantum_init), n, population0=quantum_init, record_time=True)
 
         _, best_E_q, _, _, _, convergence_time = quantum_final

@@ -69,7 +69,7 @@ Exploring these alternatives, each drawn from the same functional category as th
 ## 3. The Acceleration Strategy
 **Owner:** GPU Acceleration PIC
 
-### Quantum Acceleration (CUDA-Q)
+### Quantum Acceleration (CUDA-Q) (TODO)
 * **Strategy:** [How will you use the GPU for the quantum part?]
     * *Example:* "After testing with a single L4, we will target the `nvidia-mgpu` backend to distribute the circuit simulation across multiple L4s for large $N$."
 
@@ -85,8 +85,6 @@ Exploring these alternatives, each drawn from the same functional category as th
 3. **Shared Memory Data Structures:** Global memory is too slow, but Shared Memory (L1) is small (e.g., 164 KB per SM on an A100). To fit the necessary data into the target ~5 KB per block (allowing more active blocks), the paper used bit vectors to represent the population and correlation matrices and sparse storage of the correlation matrix.
 
 We will plan to implement as many of the strategies they mentioned as possible, given our time constraints. # TODO: mention t4 pretest Since the paper has shown effectiveness using A100 GPUs, we will run our final benchmarks on the A100 machines in Brev.
-
-However, we notice that 
 
 We will check our implementation against known correct implementations, provided in Bošković et al.
 
@@ -116,7 +114,7 @@ We will split verification by environment to control cost and isolate GPU-specif
 
 | Verification level | CPU (Qbraid) | T4 | L4 | A100 | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Unit tests (fast) | ✅ | optional | optional | ❌ | Always run on CPU in CI; GPU optional locally |
+| Unit tests (fast) | ✅ | ❌ | ❌ | ❌ | Always run on CPU in CI; GPU optional locally |
 | CPU regression tests (golden seeds) | ✅ | ✅ | ✅ | ✅ | Confirms determinism and guards against refactors |
 | GPU/CPU parity tests (small N) | ❌ | ✅ | ✅ | ✅ | Exact match expected for deterministic kernels |
 | End-to-end smoke (N~64, short budget) | ✅ | ✅ | ✅ | ✅ | Confirms no crashes + energy improves |
@@ -199,15 +197,6 @@ For initial correctness checks, we will use both numerical and non-numerical tes
 ## 5. Execution Strategy & Success Metrics
 **Owner:** Technical Marketing PIC
 
-### Success Metrics
-* **Metric 1 (Approximation):** [e.g., Target Ratio > 0.9 for N=30]
-* **Metric 2 (Speedup):** [e.g., 10x speedup over the CPU-only Tutorial baseline]
-* **Metric 3 (Scale):** [e.g., Successfully run a simulation for N=40]
-
-### Visualization Plan
-* **Plot 1:** [e.g., "Time-to-Solution vs. Problem Size (N)" comparing CPU vs. GPU]
-* **Plot 2:** [e.g., "Convergence Rate" (Energy vs. Iteration count) for the Quantum Seed vs. Random Seed]
-
 ### Agentic Workflow
 We use AI agents (ChatGPT) as development accelerators, not autonomous decision-makers.vAI assistance is used for:
 * Translating mathematical expressions into code,
@@ -255,6 +244,10 @@ No asymptotic advantage is expected. Quantum-enhanced initialization may reduce 
 Any observed improvement will be reported empirically.
 No claims of polynomial or exponential quantum speedup will be made.
 Results will be presented as comparative empirical measurements, not theoretical performance guarantees.
+
+### Visualization Plan (TODO)
+* **Plot 1:** [e.g., "Time-to-Solution vs. Problem Size (N)" comparing CPU vs. GPU]
+* **Plot 2:** [e.g., "Convergence Rate" (Energy vs. Iteration count) for the Quantum Seed vs. Random Seed]
 
 ---
 
