@@ -13,7 +13,7 @@
 | **Project Lead** (Architect) | Benjamin Chauhan | [@Meeeee6623](https://github.com/Meeeee6623) | @vivacious_cheetah_00727 |
 | **GPU Acceleration PIC** (Builder) | Trent Seaman | [@Tridentinus](https://github.com/Tridentinus) | @_chevaliermalfet |
 | **Quality Assurance PIC** (Verifier) | Martin Castellanos-Cubides | [@martcc](https://github.com/martcc) | @bonniegamerfreddyplaysforever |
-|  | Sanjeev Chauhan | [@sanjeev-one](https://github.com/sanjeev-one) | @exquisite_dove_79161 |
+| **Quality Assurance PIC** (Verifier) | Sanjeev Chauhan | [@sanjeev-one](https://github.com/sanjeev-one) | @exquisite_dove_79161 |
 | **Technical Marketing PIC** (Storyteller) | Joseph Telaak | [@The1TrueJoe](https://github.com/The1TrueJoe) | @jtela |
 
 ---
@@ -31,28 +31,24 @@
     * The strategy is particularly suited for LABS optimization where initial exploration is crucial, but final convergence requires careful tuning.
 
 ### Literature Review
-* **Reference 1:** "New Improvements in Solving Large LABS Instances Using Massively Parallelizable Memetic Tabu Search" by Zhiwei Zhang, Jiayu Shen, Niraj Kumar, and Marco Pistoia (2025) - [https://arxiv.org/html/2504.00987v2](https://arxiv.org/html/2504.00987v2)
-* **Relevance:** This paper provides the classical benchmark for our quantum-classical hybrid approach. It demonstrates:
-    * State-of-the-art classical MTS implementation achieving up to 26× speedup on GPU compared to CPU implementations
-    * Best-known LABS solutions for N=92-120, with new merit factor records for 16 problem sizes
-    * Efficient GPU parallelization strategies (block-level and thread-level) that inform our classical acceleration design
-    * Evidence that general-purpose solvers outperform skew-symmetry-constrained methods, validating our unrestricted quantum search approach
-    * Serves as the performance baseline we aim to match or exceed with our DCQO + GPU-accelerated MTS hybrid approach
 
-* **Reference 2:** "Quantum coherence and counterdiabatic quantum computing" by Raziel Huerta-Ruiz, Maximiliano Araya-Gaete, Diego Tancara, Enrique Solano, Nancy Barraza, and Francisco Albarrán-Arriagada (2025) - [https://arxiv.org/html/2504.17642v1](https://arxiv.org/html/2504.17642v1)
-* **Relevance:** This paper provides the theoretical foundation for our impulse-to-adiabatic transition strategy:
-    * Defines the impulse regime condition: max[λ̇(t)/Δ] ≫ 1, where Δ is the energy gap
-    * Shows that in the impulse regime, counterdiabatic (CD) terms dominate and produce high quantum coherence, leading to better performance
-    * Demonstrates that higher-order CD approximations generate more coherence and energy fluctuations in the impulse regime, enabling faster evolution
-    * Explains why pure adiabatic evolution becomes necessary at the end: as λ̇(t) naturally decreases (by the fundamental theorem of calculus) and the energy gap Δ shrinks near the target state, CD dominance drops
-    * Our strategy: Start in the impulse regime with CD terms for rapid exploration, then transition to pure adiabatic evolution by reintroducing the adiabatic Hamiltonian in the final stretch to maintain coherent evolution while preserving the hardware/time efficiency DCQO provides
+* **Reference 1: GPU-Accelerated Memetic Tabu Search (MTS)** * **Citation:** Zhang, Z., et al. (2025). "New Improvements in Solving Large LABS Instances Using Massively Parallelizable Memetic Tabu Search." [https://arxiv.org/html/2504.00987v2](https://arxiv.org/html/2504.00987v2)  
+  * **Relevance:** Establishes the classical benchmark for our hybrid approach. It demonstrates state-of-the-art 26x GPU speedups and provides the parallelization strategies (block-level and thread-level) that inform our classical CUDA implementation.
 
-* **Reference 3:** "Digitized counterdiabatic quantum optimization" by Narendra N. Hegade, Xi Chen, and Enrique Solano (2022) - Phys. Rev. Research 4, L042030
-* **Relevance:** Establishes the DCQO framework that we build upon:
-    * Introduces digitized implementation of counterdiabatic driving for gate-based quantum computers
-    * Provides the nested commutator expansion method for approximating the adiabatic gauge potential (AGP)
-    * Demonstrates DCQO's applicability to combinatorial optimization problems
-    * Forms the basis for our variable λ schedule and hybrid impulse-adiabatic protocol
+* **Reference 2: Quantum Coherence & The Impulse Regime** * **Citation:** Huerta-Ruiz, R., et al. (2025). "Quantum coherence and counterdiabatic quantum computing." [https://arxiv.org/html/2504.17642v1](https://arxiv.org/html/2504.17642v1)  
+  * **Relevance:** Provides the theoretical foundation for our "Impulse-to-Adiabatic" transition. It defines the condition where counterdiabatic (CD) terms dominate, allowing for faster evolution and high coherence, which justifies our variable λ schedule.
+
+* **Reference 3: Digitized Counterdiabatic Quantum Optimization (DCQO)** * **Citation:** Hegade, N. N., et al. (2022). "Digitized counterdiabatic quantum optimization." [https://arxiv.org/html/2210.15962v2](https://arxiv.org/html/2210.15962v2) and [https://arxiv.org/html/2308.02342v2](https://arxiv.org/html/2308.02342v2).  
+  * **Relevance:** Establishes the framework for implementing CD driving on gate-based quantum computers using nested commutator expansions for the adiabatic gauge potential (AGP).
+
+* **Reference 4: Multi-GPU Scaling for LABS** * **Citation:** "Massively parallel solvers for the LABS problem." Journal of Parallel and Distributed Computing (2024). [https://www.sciencedirect.com/science/article/abs/pii/S074373152400176X](https://www.sciencedirect.com/science/article/abs/pii/S074373152400176X)  
+  * **Relevance:** Provides the architectural roadmap for scaling our MTS implementation across 8x A100 GPUs, specifically addressing the $O(N^2)$ energy evaluation time complexity.
+
+* **Reference 5: The Bernasconi Model & Ground Truth** * **Citation:** Packebusch, T., & Mertens, S. (2016). "Low Autocorrelation Binary Sequences." [https://arxiv.org/pdf/1512.02475](https://arxiv.org/pdf/1512.02475)  
+  * **Relevance:** Our primary verification source. It provides the optimal energy tables for $N \le 66$ and establishes the ground truth used to validate our GPU kernels and quantum-seeded results.
+
+* **Reference 6: Adaptive Quantum Simulated Annealing** * **Citation:** Harrow, A. W., & Wei, A. Y. (2020). "Adaptive Quantum Simulated Annealing." [https://arxiv.org/html/1907.09965v2](https://arxiv.org/html/1907.09965v2)  
+  * **Relevance:** Informs our seeding strategy. We use adaptive schedules derived from this work to ensure "qsamples" effectively represent the lowest-energy states of the LABS landscape.
 
 ---
 
