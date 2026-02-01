@@ -8,36 +8,30 @@ import os
 # 1. Imports & Dependency Check
 # -----------------------------------------------------------------------------
 try:
-    # Try importing if file is in the same directory
     import labs_utils as utils
 except ImportError:
     try:
-        # Try importing if file is in the original folder structure
         import auxiliary_files.labs_utils as utils
     except ImportError:
         print("\n[Error] 'labs_utils.py' not found.")
-        print("Please ensure 'labs_utils.py' is in the same directory or 'auxiliary_files/'.")
-        print("This file is required for the 'compute_theta' physics calculations.\n")
         sys.exit(1)
 
 # -----------------------------------------------------------------------------
-# 2. CUDA-Q Kernel Definition (The Quantum Circuit)
+# 2. Kernel Definitions
 # -----------------------------------------------------------------------------
+
+# --- Variant 1: Jenga (Pure Counter-Diabatic Impulse) ---
 @cudaq.kernel
-def qc(n: int, indices: list[int], indices2: list[int], theta_list: list[float]):
+def kernel_jenga(n: int, indices: list[int], indices2: list[int], theta_list: list[float]):
     qubits = cudaq.qvector(n)
-    
-    # Initialize in superposition
     for i in range(n):
         h(qubits[i])
 
-    # Apply Trotter Steps
     for t in range(len(theta_list)):
-        # Apply 2-Body Terms
+        # 2-Body CD Terms
         for i in range(len(indices) // 2):
             i1 = indices[2*i]
             i0 = indices[2*i + 1]
-    
             rx(np.pi/2, qubits[i0])
             cx(qubits[i0], qubits[i1])
             rz(theta_list[t], qubits[i1])
@@ -48,14 +42,13 @@ def qc(n: int, indices: list[int], indices2: list[int], theta_list: list[float])
             rz(theta_list[t], qubits[i1])
             cx(qubits[i0], qubits[i1])
             rx(-np.pi/2, qubits[i1])
-    
-        # Apply 4-Body Terms
+
+        # 4-Body CD Terms
         for i in range(len(indices2) // 4):
             i0 = indices2[4*i]
             i1 = indices2[4*i + 1]
             i2 = indices2[4*i + 2]
             i3 = indices2[4*i + 3]
-    
             rx(-np.pi/2, qubits[i0])
             ry(np.pi/2, qubits[i1])
             ry(-np.pi/2, qubits[i2])
@@ -117,16 +110,104 @@ def qc(n: int, indices: list[int], indices2: list[int], theta_list: list[float])
 
     mz(qubits)
 
+# --- Variant 2: DNA (Digitized Adiabatic + CD) ---
+@cudaq.kernel
+def kernel_dna(n: int, dt: float, indices: list[int], indices2: list[int], theta_list_CD: list[float], lamb_list_AD: list[float], CD: list[bool], AD: list[bool]):
+    qubits = cudaq.qvector(n)
+    for i in range(n):
+        h(qubits[i])
+
+    for t in range(len(theta_list_CD)):
+        if CD[t] == True:
+            # 2-Body CD
+            for i in range(len(indices) // 2):
+                i1 = indices[2*i]; i0 = indices[2*i + 1]
+                rx(np.pi/2, qubits[i0]); cx(qubits[i0], qubits[i1]); rz(theta_list_CD[t], qubits[i1]); cx(qubits[i0], qubits[i1])
+                rx(-np.pi/2, qubits[i0]); rx(np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1]); rz(theta_list_CD[t], qubits[i1]); cx(qubits[i0], qubits[i1]); rx(-np.pi/2, qubits[i1])
+            # 4-Body CD
+            for i in range(len(indices2) // 4):
+                i0 = indices2[4*i]; i1 = indices2[4*i + 1]; i2 = indices2[4*i + 2]; i3 = indices2[4*i + 3]
+                rx(-np.pi/2, qubits[i0]); ry(np.pi/2, qubits[i1]); ry(-np.pi/2, qubits[i2]); cx(qubits[i0], qubits[i1]); rz(-np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1])
+                cx(qubits[i2], qubits[i3]); rz(-np.pi/2, qubits[i3]); cx(qubits[i2], qubits[i3]); rx(np.pi/2, qubits[i0]); ry(-np.pi/2, qubits[i1]); ry(np.pi/2, qubits[i2]); rx(-np.pi/2, qubits[i3])
+                rx(-np.pi/2, qubits[i1]); rx(-np.pi/2, qubits[i2]); cx(qubits[i1], qubits[i2]); rz(theta_list_CD[t], qubits[i2]); cx(qubits[i1], qubits[i2])
+                rx(np.pi/2, qubits[i1]); rx(np.pi, qubits[i2]); ry(np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1]); rz(np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1])
+                rx(np.pi/2, qubits[i0]); ry(-np.pi/2, qubits[i1]); cx(qubits[i1], qubits[i2]); rz(-theta_list_CD[t], qubits[i2]); cx(qubits[i1], qubits[i2])
+                rx(np.pi/2, qubits[i1]); rx(-np.pi, qubits[i2]); cx(qubits[i1], qubits[i2]); rz(-theta_list_CD[t], qubits[i2]); cx(qubits[i1], qubits[i2])
+                rx(-np.pi, qubits[i1]); ry(np.pi/2, qubits[i2]); cx(qubits[i2], qubits[i3]); rz(-np.pi/2, qubits[i3]); cx(qubits[i2], qubits[i3])
+                ry(-np.pi/2, qubits[i2]); rx(-np.pi/2, qubits[i3]); rx(-np.pi/2, qubits[i2]); cx(qubits[i1], qubits[i2]); rz(theta_list_CD[t], qubits[i2]); cx(qubits[i1], qubits[i2])
+                rx(np.pi/2, qubits[i1]); rx(np.pi/2, qubits[i2]); ry(-np.pi/2, qubits[i1]); ry(np.pi/2, qubits[i2]); cx(qubits[i0], qubits[i1]); rz(np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1])
+                cx(qubits[i2], qubits[i3]); rz(np.pi/2, qubits[i3]); cx(qubits[i2], qubits[i3]); ry(np.pi/2, qubits[i1]); ry(-np.pi/2, qubits[i2]); rx(np.pi/2, qubits[i3])
+
+        if AD[t] == True:
+            # Adiabatic Evolution (Mixer + Problem)
+            for i in range(n):
+                rx(2*dt - 2*lamb_list_AD[t]*dt, qubits[i])
+            for i in range(len(indices) // 2):
+                i1 = indices[2*i]; i0 = indices[2*i + 1]
+                cx(qubits[i0], qubits[i1]); rz(4*lamb_list_AD[t]*dt, qubits[i1]); cx(qubits[i0], qubits[i1])
+            for i in range(len(indices2) // 4):
+                i0 = indices2[4*i]; i1 = indices2[4*i + 1]; i2 = indices2[4*i + 2]; i3 = indices2[4*i + 3]
+                cx(qubits[i0],qubits[i1]); cx(qubits[i1],qubits[i2]); cx(qubits[i2],qubits[i3])
+                rz(8*lamb_list_AD[t]*dt, qubits[i3])
+                cx(qubits[i2],qubits[i3]); cx(qubits[i1],qubits[i2]); cx(qubits[i0],qubits[i1])
+
+    for i in range(n//2):
+        rx.ctrl(0.0, qubits[2*i+1], qubits[2*i])
+    mz(qubits)
+
+# --- Variant 3: Beyblade (Interleaved AD/CD) ---
+@cudaq.kernel
+def kernel_beyblade(n: int, dt: float, indices: list[int], indices2: list[int], theta_list_CD: list[float], lamb_list_AD: list[float], CD: list[bool], AD: list[bool]):
+    qubits = cudaq.qvector(n)
+    for i in range(n):
+        h(qubits[i])
+
+    for t in range(len(theta_list_CD)):
+        # 1. Adiabatic Mixer First
+        if AD[t] == True:
+            for i in range(n):
+                rx(2*dt - 2*lamb_list_AD[t]*dt, qubits[i])
+        
+        # 2. 2-Body Terms (Interleaved)
+        for i in range(len(indices) // 2):
+            i1 = indices[2*i]; i0 = indices[2*i + 1]
+            if CD[t] == True:
+                rx(np.pi/2, qubits[i0]); cx(qubits[i0], qubits[i1]); rz(theta_list_CD[t], qubits[i1]); cx(qubits[i0], qubits[i1])
+                rx(-np.pi/2, qubits[i0]); rx(np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1]); rz(theta_list_CD[t], qubits[i1]); cx(qubits[i0], qubits[i1]); rx(-np.pi/2, qubits[i1])
+            if AD[t] == True:
+                cx(qubits[i0], qubits[i1]); rz(4*lamb_list_AD[t]*dt, qubits[i1]); cx(qubits[i0], qubits[i1])
+
+        # 3. 4-Body Terms (Interleaved)
+        for i in range(len(indices2) // 4):
+            i0 = indices2[4*i]; i1 = indices2[4*i + 1]; i2 = indices2[4*i + 2]; i3 = indices2[4*i + 3]
+            if CD[t] == True:
+                rx(-np.pi/2, qubits[i0]); ry(np.pi/2, qubits[i1]); ry(-np.pi/2, qubits[i2]); cx(qubits[i0], qubits[i1]); rz(-np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1])
+                cx(qubits[i2], qubits[i3]); rz(-np.pi/2, qubits[i3]); cx(qubits[i2], qubits[i3]); rx(np.pi/2, qubits[i0]); ry(-np.pi/2, qubits[i1]); ry(np.pi/2, qubits[i2]); rx(-np.pi/2, qubits[i3])
+                rx(-np.pi/2, qubits[i1]); rx(-np.pi/2, qubits[i2]); cx(qubits[i1], qubits[i2]); rz(theta_list_CD[t], qubits[i2]); cx(qubits[i1], qubits[i2])
+                rx(np.pi/2, qubits[i1]); rx(np.pi, qubits[i2]); ry(np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1]); rz(np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1])
+                rx(np.pi/2, qubits[i0]); ry(-np.pi/2, qubits[i1]); cx(qubits[i1], qubits[i2]); rz(-theta_list_CD[t], qubits[i2]); cx(qubits[i1], qubits[i2])
+                rx(np.pi/2, qubits[i1]); rx(-np.pi, qubits[i2]); cx(qubits[i1], qubits[i2]); rz(-theta_list_CD[t], qubits[i2]); cx(qubits[i1], qubits[i2])
+                rx(-np.pi, qubits[i1]); ry(np.pi/2, qubits[i2]); cx(qubits[i2], qubits[i3]); rz(-np.pi/2, qubits[i3]); cx(qubits[i2], qubits[i3])
+                ry(-np.pi/2, qubits[i2]); rx(-np.pi/2, qubits[i3]); rx(-np.pi/2, qubits[i2]); cx(qubits[i1], qubits[i2]); rz(theta_list_CD[t], qubits[i2]); cx(qubits[i1], qubits[i2])
+                rx(np.pi/2, qubits[i1]); rx(np.pi/2, qubits[i2]); ry(-np.pi/2, qubits[i1]); ry(np.pi/2, qubits[i2]); cx(qubits[i0], qubits[i1]); rz(np.pi/2, qubits[i1]); cx(qubits[i0], qubits[i1])
+                cx(qubits[i2], qubits[i3]); rz(np.pi/2, qubits[i3]); cx(qubits[i2], qubits[i3]); ry(np.pi/2, qubits[i1]); ry(-np.pi/2, qubits[i2]); rx(np.pi/2, qubits[i3])
+            if AD[t] == True:
+                cx(qubits[i0],qubits[i1]); cx(qubits[i1],qubits[i2]); cx(qubits[i2],qubits[i3])
+                rz(8*lamb_list_AD[t]*dt, qubits[i3])
+                cx(qubits[i2],qubits[i3]); cx(qubits[i1],qubits[i2]); cx(qubits[i0],qubits[i1])
+
+    for i in range(n//2):
+        rx.ctrl(0.0, qubits[2*i+1], qubits[2*i])
+    mz(qubits)
+
 # -----------------------------------------------------------------------------
-# 3. Helper Functions (Interactions & Exports)
+# 3. Helpers (Interactions, Schedules, Export)
 # -----------------------------------------------------------------------------
 def get_interactions(n):
-    """Generates the interaction sets G2 and G4 based on problem size N."""
     pairs = []
     for i in range(1, n):
         square = [(i+j, j) for j in range(n-i)]
         pairs.append(square)
-
     full = []
     for x in range(len(pairs)):
         test = pairs[x]
@@ -134,102 +215,95 @@ def get_interactions(n):
             for j in range(len(test)):
                 list1 = [test[i][0], test[i][1], test[j][0], test[j][1]]
                 set1 = {w for w in list1 if list1.count(w) == 1}
-                if set1:
-                    full.append(set1)
-
+                if set1: full.append(set1)
     unique = [set(s) for s in set(frozenset(s) for s in full)]
     list_pairs = [list(i) for i in unique]
-
-    list_2, list_4, G2, G4 = [], [], [], []
+    G2, G4, list_2, list_4 = [], [], [], []
     for i in list_pairs:
         if len(i) == 2:
-            list_2 += [i[0], i[1]]
-            G2.append(i)
+            list_2 += [i[0], i[1]]; G2.append(i)
         else:
-            list_4 += [i[0], i[1], i[2], i[3]]
-            G4.append(i)
-            
+            list_4 += [i[0], i[1], i[2], i[3]]; G4.append(i)
     return G2, G4, list_2, list_4
 
+def compute_adiabatic_schedule(n_steps):
+    """Generates the lambda schedule for adiabatic terms."""
+    # Standard Sin^2 schedule often used in CD/QAOA literature
+    t_vals = np.linspace(0, 1, n_steps + 1)[1:] # Evaluate at end of step
+    lambdas = np.sin((np.pi/2) * (np.sin(np.pi * t_vals / 2)**2))**2
+    return lambdas.tolist()
+
 def export_ready_for_cuda(quantum_population, n, filename, gpu_pop_size=8192, gpu_max_n=512):
-    """Exports data to a binary file formatted for the C++ Solver."""
-    print(f"--> Formatting data for C++ (Pop: {gpu_pop_size}, MaxN: {gpu_max_n})...")
+    print(f"--> Exporting {len(quantum_population)} samples to '{filename}' (Target Size: {gpu_pop_size})...")
     host_buffer = np.random.choice([-1, 1], size=(gpu_pop_size, gpu_max_n)).astype(np.int8)
-    
     num_samples = quantum_population.shape[0]
     rows_to_fill = min(num_samples, gpu_pop_size)
-    
-    # Inject quantum data into the buffer
     host_buffer[:rows_to_fill, :n] = quantum_population[:rows_to_fill].astype(np.int8)
-    
     host_buffer.tofile(filename)
-    print(f"--> Saved '{filename}' ({host_buffer.nbytes/1024**2:.2f} MB)")
 
 # -----------------------------------------------------------------------------
-# 4. Main Simulation Logic
+# 4. Simulation Controller (SINGLE RUN ONLY)
 # -----------------------------------------------------------------------------
-def run_simulation(n, shots, runs, pop_size, output_file):
-    print(f"\n=== Starting Quantum LABS Simulation ===")
-    print(f"Parameters: N={n}, Shots={shots}, Runs={runs}, Target Pop={pop_size}")
-    
-    # 1. Setup Physics
+def run_simulation(n, shots, pop_size, output_file, variant, steps):
+    print(f"\n=== Quantum LABS Simulation ({variant.upper()}) ===")
+    print(f"N={n}, Shots={shots}, Steps={steps}")
+
     G2, G4, list_2, list_4 = get_interactions(n)
+    T = 1.0
+    dt = T / steps
     
-    T = 1
-    n_steps = 1
-    dt = T / n_steps
-    thetas = []
-    
-    print("Computing annealing angles...")
-    for step in range(1, n_steps + 1):
+    # 1. Physics Calculations
+    thetas_CD = []
+    print("Computing Counter-Diabatic (CD) angles...")
+    for step in range(1, steps + 1):
         t = step * dt
-        # Using the imported utils file
         theta_val = utils.compute_theta(t, dt, T, n, G2, G4)
-        thetas.append(theta_val)
+        thetas_CD.append(theta_val)
 
-    # 2. Run Quantum Sampling
-    print("Running CUDA-Q sampling...")
-    aggregated_strings = []
+    lambdas_AD = compute_adiabatic_schedule(steps)
     
-    for i in range(runs):
-        result = cudaq.sample(qc, n, list_2, list_4, thetas, shots_count=shots)
-        
-        # We take the top results to fill our population needs
-        # We grab enough to fill the population if possible
-        samples_needed = int(pop_size / runs) + 50 
-        
-        top_strings = [
-            bs for bs, count in sorted(result.items(), key=lambda x: x[1], reverse=True)[:samples_needed]
-        ]
-        aggregated_strings.extend(top_strings)
-        print(f"  Run {i+1}/{runs}: Collected {len(top_strings)} candidates.")
+    # Default toggles (Enable everything)
+    CD_toggle = [True] * steps
+    AD_toggle = [True] * steps
 
-    # 3. Process Data
-    print(f"Processing {len(aggregated_strings)} total candidates...")
+    # 2. Kernel Selection & Single Shot Execution
+    print(f"Running Kernel: {variant} (Single Run)...")
     
-    # Convert "01" strings to +/- 1 integers
-    # Assumption: "1" maps to 1, "0" maps to -1 (or vice versa, LABS is symmetric)
-    # We use: 1 -> 1, 0 -> -1
+    if variant == 'jenga':
+        result = cudaq.sample(kernel_jenga, n, list_2, list_4, thetas_CD, shots_count=shots)
+    elif variant == 'dna':
+        result = cudaq.sample(kernel_dna, n, dt, list_2, list_4, thetas_CD, lambdas_AD, CD_toggle, AD_toggle, shots_count=shots)
+    elif variant == 'beyblade':
+        result = cudaq.sample(kernel_beyblade, n, dt, list_2, list_4, thetas_CD, lambdas_AD, CD_toggle, AD_toggle, shots_count=shots)
+    
+    # 3. Extract Top K Bitstrings
+    # Sort dictionary items by count (descending) and take top `pop_size`
+    top_strings = [bs for bs, count in sorted(result.items(), key=lambda x: x[1], reverse=True)[:pop_size]]
+    
+    print(f"Collected {len(top_strings)} elite candidates from {shots} shots.")
+
+    # 4. Convert & Export
     pop_list = []
-    for s in aggregated_strings:
+    for s in top_strings:
         arr = np.array([int(b) for b in s])
         pm1 = (2 * arr - 1).astype(np.int8)
         pop_list.append(pm1)
         
     initial_pop = np.array(pop_list)
-
-    # 4. Export
     export_ready_for_cuda(initial_pop, n, output_file, gpu_pop_size=pop_size)
-    print("=== Generation Complete ===\n")
+    print("=== Complete ===\n")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate Quantum Warm Start for LABS")
-    parser.add_argument("--n", type=int, required=True, help="Problem size (Sequence Length)")
-    parser.add_argument("--shots", type=int, default=100000, help="Shots per quantum run")
-    parser.add_argument("--runs", type=int, default=10, help="Number of independent quantum runs")
-    parser.add_argument("--popsize", type=int, default=8192, help="Target population size for C++")
-    parser.add_argument("--output", type=str, default="warm_start.bin", help="Output filename")
+    parser = argparse.ArgumentParser(description="Generate Quantum Warm Start")
+    parser.add_argument("--n", type=int, required=True, help="Sequence Length")
+    parser.add_argument("--shots", type=int, default=100000)
+    parser.add_argument("--popsize", type=int, default=8192, help="Number of elites to extract")
+    parser.add_argument("--steps", type=int, default=1, help="Trotter steps")
+    parser.add_argument("--output", type=str, default="warm_start.bin")
+    parser.add_argument("--variant", type=str, choices=['jenga', 'dna', 'beyblade'], default='jenga', 
+                        help="Quantum Circuit Variant: 'jenga' (Pure CD), 'dna' (Digitized Adiabatic), 'beyblade' (Interleaved)")
     
     args = parser.parse_args()
     
-    run_simulation(args.n, args.shots, args.runs, args.popsize, args.output)
+    # Notice: 'runs' argument is gone.
+    run_simulation(args.n, args.shots, args.popsize, args.output, args.variant, args.steps)
