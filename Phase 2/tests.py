@@ -256,6 +256,59 @@ class TestAncillaManager:
             f"Peak qubits {stats['peak_qubits']} should be >= 15"
 
 
+# Add these new test classes
+
+class TestGPUAcceleration:
+    """Test GPU vs CPU consistency."""
+
+    @pytest.mark.skipif(not HAS_CUPY, reason="CuPy not available")
+    def test_gpu_cpu_consistency(self):
+        """GPU results should match CPU results."""
+        from gpu_labs import evaluate_population_gpu
+
+        N = 10
+        population = [[np.random.randint(0, 2) for _ in range(N)]
+                      for _ in range(100)]
+
+        # CPU
+        cpu_energies = [calculate_labs_energy(seq, N) for seq in population]
+
+        # GPU
+        gpu_energies = evaluate_population_gpu(population, N)
+
+        np.testing.assert_array_equal(cpu_energies, gpu_energies)
+
+
+class TestScalability:
+    """Test that solution scales to larger N."""
+
+    def test_large_n_generation(self):
+        """Should handle N up to 50."""
+        for N in [10, 20, 30, 40, 50]:
+            G2, G4 = get_interactions(N)
+            assert len(G2) > 0
+            # Verify no crashes
+
+
+class TestPhysicalConstraints:
+    """Test physical constraint violations."""
+
+    def test_energy_never_negative(self):
+        """LABS energy must always be >= 0."""
+        for _ in range(100):
+            N = np.random.randint(5, 30)
+            seq = [np.random.randint(0, 2) for _ in range(N)]
+            energy = calculate_labs_energy(seq, N)
+            assert energy >= 0, f"Negative energy {energy} for N={N}"
+
+    def test_interaction_validity(self):
+        """All interactions must reference valid qubits."""
+        for N in range(4, 51):
+            G2, G4 = get_interactions(N)
+
+            for interaction in G2 + G4:
+                assert all(0 <= idx < N for idx in interaction), \
+                    f"Invalid qubit index at N={N}"
 # ============================================================================
 # TEST 5: Helper Functions
 # ============================================================================

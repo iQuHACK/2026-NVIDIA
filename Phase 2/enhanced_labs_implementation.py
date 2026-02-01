@@ -93,15 +93,17 @@ class AncillaManager:
     def should_reclaim(self, gate_cost: int, n_ancilla: int, level: int) -> bool:
         """Cost-Effective Reclamation decision."""
         Nactive = len(self.active_qubits)
+        if Nactive == 0:
+            Nactive = 1
         Guncomp = gate_cost
 
         C1 = Nactive * Guncomp * (2 ** level)
 
-        Gparent = 2 * Guncomp
+        Gparent = max(2 * Guncomp, 1)
         area_expansion = np.sqrt((Nactive + n_ancilla) / max(Nactive, 1))
         C0 = n_ancilla * Gparent * area_expansion
 
-        return C1 <= C0
+        return C1 < C0
 
     def reclaim_ancilla(self, qubit_ids: List[int]):
         """Reclaim ancilla qubits and add to heap for reuse."""
@@ -114,16 +116,22 @@ class AncillaManager:
 
     def get_stats(self) -> Dict:
         """Get statistics about ancilla usage."""
-        peak = len(self.active_qubits)
-        for op, alloc in self.allocation_history:
+        # Calculate peak from allocation history
+        peak = 0
+        current_active = 0
+
+        for op, qubits in self.allocation_history:
             if op == 'allocate':
-                peak = max(peak, len(alloc))
+                current_active += len(qubits)
+                peak = max(peak, current_active)
+            elif op == 'reclaim':
+                current_active -= len(qubits)
 
         return {
             'active_qubits': len(self.active_qubits),
             'heap_size': len(self.ancilla_heap),
             'total_allocated': len(self.active_qubits) + len(self.ancilla_heap),
-            'peak_qubits': peak
+            'peak_qubits': peak  # FIX: Now correctly tracks peak
         }
 
     def get_reuse_efficiency(self) -> Dict:
