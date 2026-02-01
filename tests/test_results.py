@@ -74,6 +74,7 @@ def test_qemts_results(params: BenchmarkParams):
 
 
 def test_bfdcqo_results():
+    """test results for BF-DCQO algorithm"""
     energies = []
 
     theta_cutoff = 0.06
