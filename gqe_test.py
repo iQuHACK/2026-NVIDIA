@@ -203,11 +203,12 @@ def sample_optimized(coeffs: list[float], words: list[cudaq.pauli_word]):
         mz(qubit)
 
 def labs_energy(x):
-    s = 2 * np.asarray(x) - 1
+    # Convert 0/1 -> +1/-1
+    s = [1 if b==1 else -1 for b in x]
     N = len(s)
     E = 0
     for k in range(1, N):
-        Ck = np.sum(s[:N-k] * s[k:])
+        Ck = sum(s[i] * s[i+k] for i in range(N - k))
         E += Ck**2
     return E
 
@@ -261,8 +262,8 @@ if not args.mpi or cudaq.mpi.rank() == 0:
     samples = cudaq.sample(sample_optimized, opt_coeffs, opt_words, shots_count=shots)
 
     # samples is a list of lists of 0/1 outcomes
-    # bitstrings = ["".join(map(str, s)) for s in samples]
-    bitstrings = ["".join(map(str, s.tolist())) for s in samples]
+    bitstrings = ["".join(map(str, s)) for s in samples]
+
 
     from collections import Counter
     counts = Counter(bitstrings)
