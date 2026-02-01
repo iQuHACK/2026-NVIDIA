@@ -19,7 +19,7 @@ def run_benchmark():
     print("-" * 70)
 
     # 2. Run Benchmark for N=1..30
-    for N in range(1, 31):
+    for N in range(30, 51):
         # Run ./labs_gpu <N>
         cmd = [str(classical_dir / "labs_gpu"), str(N)]
         
