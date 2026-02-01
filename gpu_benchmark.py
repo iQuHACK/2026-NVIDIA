@@ -3,6 +3,7 @@ import sys
 import re
 from pathlib import Path
 import time
+import csv
 
 def run_benchmark():
     # 1. Compile CUDA code
@@ -19,7 +20,14 @@ def run_benchmark():
     print("-" * 100)
 
     # 2. Run Benchmark for N=1..30
-    for N in range(1,40):
+    csv_filename = "benchmark_results.csv"
+    print(f"Saving results to {csv_filename}")
+    csv_file = open(csv_filename, "w", newline='')
+    writer = csv.writer(csv_file)
+    writer.writerow(["N", "Best E", "Conv. Time", "Total Time", "Merit F.", "Generations", "Sequence"])
+
+    try:
+        for N in range(1,40):
         # Run ./labs_gpu <N>
         cmd = [str(classical_dir / "labs_gpu"), str(N)]
         
@@ -87,11 +95,16 @@ def run_benchmark():
             total_gen = gen_match.group(1) if gen_match else "N/A"
 
             print(f"{N:<5} {best_e:<10} {convergence_time:<12} {total_time:<12} {merit:<10} {total_gen:<12} {seq:<20}")
+            writer.writerow([N, best_e, convergence_time, total_time, merit, total_gen, seq])
+            csv_file.flush()
 
         except subprocess.TimeoutExpired:
             print(f"{N:<5} TIMEOUT")
         except Exception as e:
             print(f"{N:<5} ERROR: {e}")
+            
+    finally:
+        csv_file.close()
 
 if __name__ == "__main__":
     run_benchmark()
