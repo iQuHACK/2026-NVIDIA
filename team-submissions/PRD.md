@@ -59,14 +59,6 @@
 ## 3. The Acceleration Strategy
 
 ### Quantum Acceleration (CUDA-Q)
-<!-- * **Strategy:** [How will you use the GPU for the quantum part?]
-    * *Example:* "After testing with a single L4, we will target the `nvidia-mgpu` backend to distribute the circuit simulation across multiple L4s for large $N$." -->
- * **Strategy:** [How will you use the GPU for the quantum part?]
-    * *Example:* "After testing with a single L4, we will target the `nvidia-mgpu` backend to distribute the circuit simulation across multiple L4s for large $N$."
- ## 3. The Acceleration Strategy
-**Owner:** GPU Acceleration PIC
-
-### Quantum Acceleration (CUDA-Q)
 * **GPU Scaling:** We will first test on a single A100 to confirm correct Since we plan accomodate larger $N$, we will target the brev backend to distribute the memory requirements of the $2^N$ state vector across multiple A100-80GB nodes, enabling the simulation of deeper circuits required for the impulse-to-adiabatic transition.
 * **Batch Sampling:** We will use `cudaq.sample` with a high shot count to generate a statistically significant "Quantum Seed" population, which will be transferred directly to GPU global memory for the MTS phase to minimize PCIe overhead.
 
