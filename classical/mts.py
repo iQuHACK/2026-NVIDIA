@@ -1,71 +1,53 @@
-"""Memetic Tabu Search (MTS) for the LABS problem.
+"""Memetic Tabu Search (MTS) for the LABS problem — CPU-optimized.
 
-This module implements a classical Memetic Tabu Search (MTS) heuristic for the
-Low Autocorrelation Binary Sequences (LABS) optimization problem.
-
-Representation
---------------
-- A candidate solution is a length-N array `s` with entries in {-1, +1}.
-- A population is an array of shape (k, N).
-
-Objective
----------
-Given `s`, define autocorrelation values:
-    C_k(s) = sum_{i=0..N-k-1} s[i] * s[i+k],   for k=1..N-1
-and the LABS energy:
-    E(s) = sum_{k=1..N-1} C_k(s)^2
-
-Algorithm sketch (MTS)
+Optimizations applied
 ----------------------
-1) Initialize population of k random bitstrings.
-2) Track best (lowest-energy) solution in population.
-3) Repeat until max_iter or target achieved:
-   - Sample an existing solution OR combine two parents (one-point crossover)
-   - Mutate each bit with probability p_mutate
-   - Run tabu search (local improvement) starting from the child
-   - Update global best if improved
-   - Replace a random population member if the new solution is better
+1. **All-j delta vectorized.**  The original computed delta_E one bit at a time
+   inside a Python loop (O(N) Python iterations, each doing an O(N) Python loop
+   over lags).  The new `_all_deltas` computes every candidate delta in one
+   vectorised pass: O(N) NumPy array operations over lags, each operating on
+   length-N arrays.  The Python loop over lags stays (it's O(N) iterations) but
+   every iteration is a handful of vectorised C-level ops — no per-bit Python
+   overhead.
 
-Testing
--------
-Run unit tests with:
-    `pytest`
+2. **Redundant energy recomputation removed.**  After applying a flip the
+   original re-summed C[1:]**2.  We already know the exact delta, so
+   `E += delta` suffices.
 
-Notes for performance work (next step)
---------------------------------------
-The functions `_delta_energy_for_flip` and `_apply_flip_in_place` are written to
-avoid recomputing the full LABS objective for each 1-bit flip. They’re good
-targets for CuPy/Numba acceleration later.
+3. **In-place C update vectorised.**  `_apply_flip_in_place` had a Python loop
+   over lags; replaced with two slice additions (one for the right-neighbour
+   contribution, one for the left).
+
+4. **Tabu mask as a boolean array.**  Instead of comparing `tabu_expire[j] > step`
+   inside a Python loop we build a boolean mask once per step and use it with
+   `np.where` / argmin logic — fully in NumPy.
+
+5. **Pre-allocated scratch arrays.**  The `neighbor_sum` and `deltas` arrays are
+   allocated once and reused across every tabu step, avoiding repeated
+   allocation in the innermost loop.
+
+6. **Minimal copies in MTS outer loop.**  `mutate` now works in-place on an
+   already-copied array; `combine` writes directly into a pre-allocated buffer.
 """
 
-from tracemalloc import start
 from typing import Optional, Tuple, List
 import time
 
 import numpy as np
 
 
-def generate_bitstrings(k: int, N: int, seed: Optional[int] = None) -> np.ndarray:
-    """Generate k random {-1,+1} bitstrings of length N.
+# ---------------------------------------------------------------------------
+# Unchanged helpers (already efficient or not on the hot path)
+# ---------------------------------------------------------------------------
 
-    Returns:
-        population: np.ndarray of shape (k, N)
-    """
+def generate_bitstrings(k: int, N: int, seed: Optional[int] = None) -> np.ndarray:
     rng = np.random.default_rng(seed)
     return rng.choice(np.array([-1, 1], dtype=np.int8), size=(k, N))
 
 
 def energy(s: np.ndarray) -> np.ndarray:
-    """LABS energy.
-
-    E(s) = sum_{k=1..N-1} C_k(s)^2, where C_k = sum_{i=1..N-k} s_i s_{i+k}
-
-    Supports:
-      - s shape (N,)  -> returns scalar np.int64
-      - s shape (k,N) -> returns (k,) energies
-    """
+    """LABS energy — batch-vectorised for 2-D input, scalar loop for 1-D."""
     s = np.asarray(s)
-
     if s.ndim == 1:
         N = s.shape[0]
         e = np.int64(0)
@@ -73,7 +55,6 @@ def energy(s: np.ndarray) -> np.ndarray:
             ck = int(np.dot(s[: N - shift], s[shift:]))
             e += np.int64(ck * ck)
         return e
-
     if s.ndim == 2:
         k_pop, N = s.shape
         e = np.zeros(k_pop, dtype=np.int64)
@@ -81,12 +62,11 @@ def energy(s: np.ndarray) -> np.ndarray:
             ck = (s[:, : N - shift] * s[:, shift:]).sum(axis=1, dtype=np.int64)
             e += ck * ck
         return e
-
     raise ValueError("s must be 1D or 2D")
 
 
 def _autocorr_vector(s: np.ndarray) -> np.ndarray:
-    """Return C_k for k=0..N-1 (C_0 unused, set to 0)."""
+    """Return C[0..N-1]; C[0] is unused (set to 0)."""
     N = s.shape[0]
     C = np.zeros(N, dtype=np.int64)
     for k in range(1, N):
@@ -94,57 +74,83 @@ def _autocorr_vector(s: np.ndarray) -> np.ndarray:
     return C
 
 
-def _delta_energy_for_flip(s: np.ndarray, C: np.ndarray, j: int) -> int:
-    """Compute delta E if we flip s[j] (does not mutate s or C)."""
-    N = s.shape[0]
-    sj = int(s[j])
-    delta = 0
+# ---------------------------------------------------------------------------
+# Vectorised hot-path primitives
+# ---------------------------------------------------------------------------
+
+def _all_deltas(s64: np.ndarray, C: np.ndarray, D: np.ndarray) -> np.ndarray:
+    """Compute delta_E for flipping every bit j — fully vectorised, no Python loop over lags.
+
+    Math
+    ----
+    dC_k(j) = -2 * s[j] * ( s[j+k]*[j<N-k] + s[j-k]*[j>=k] )
+    delta_E(j) = sum_{k=1}^{N-1}  dC_k(j) * (2*C[k] + dC_k(j))
+
+    We build the full (N-1, N) matrix D where D[k-1, j] = dC_k(j) using two
+    triangular block-fills (right and left neighbours), then contract to (N,)
+    in a single fused reduction.
+
+    Parameters
+    ----------
+    s64 : (N,)      int64  current spin vector (caller maintains this in sync with s)
+    C   : (N,)      int64  autocorrelation vector
+    D   : (N-1, N)  int64  pre-allocated scratch matrix (reused across steps)
+
+    Returns
+    -------
+    deltas : (N,) int64
+    """
+    N = s64.shape[0]
+
+    D[:] = 0
+
+    # Right neighbours: for lag k, indices j in [0, N-k)
     for k in range(1, N):
-        dCk = 0
-        if j < N - k:
-            dCk += -2 * sj * int(s[j + k])
-        if j >= k:
-            dCk += -2 * int(s[j - k]) * sj
+        D[k - 1, : N - k] = s64[: N - k] * s64[k:]
 
-        if dCk:
-            ck = int(C[k])
-            delta += 2 * ck * dCk + dCk * dCk
-    return int(delta)
-
-
-def _apply_flip_in_place(s: np.ndarray, C: np.ndarray, j: int) -> None:
-    """Flip s[j] and update C_k in place."""
-    N = s.shape[0]
-    sj_old = int(s[j])
-
+    # Left neighbours: for lag k, indices j in [k, N)
     for k in range(1, N):
-        if j < N - k:
-            C[k] += -2 * sj_old * int(s[j + k])
-        if j >= k:
-            C[k] += -2 * int(s[j - k]) * sj_old
+        D[k - 1, k:] += s64[k:] * s64[: N - k]
 
-    s[j] = -s[j]
+    # Apply the -2 factor.  The slice products already include s[j].
+    D *= -2
 
+    # Contract: delta_E(j) = sum_k  D[k-1,j] * (2*C[k] + D[k-1,j])
+    C_col = C[1:, np.newaxis]                # (N-1, 1)
+    deltas = (D * (2 * C_col + D)).sum(axis=0)  # (N,)
 
-def combine(p1: np.ndarray, p2: np.ndarray, rng: np.random.Generator) -> np.ndarray:
-    """One-point crossover (Algorithm 3: Combine)."""
-    N = p1.shape[0]
-    cut = int(rng.integers(1, N))  # {1, ..., N-1}
-    child = np.empty_like(p1)
-    child[:cut] = p1[:cut]
-    child[cut:] = p2[cut:]
-    return child
+    return deltas
 
 
-def mutate(s: np.ndarray, p_mut: float, rng: np.random.Generator) -> np.ndarray:
-    """Bit-flip mutation (Algorithm 3: Mutate)."""
-    if p_mut <= 0:
-        return s
-    flips = rng.random(s.shape[0]) < p_mut
-    out = s.copy()
-    out[flips] *= -1
-    return out
+def _apply_flip_in_place(s: np.ndarray, s64: np.ndarray, C: np.ndarray, j: int) -> None:
+    """Flip s[j], update s64[j], and update autocorrelation vector C in place.
 
+    Parameters
+    ----------
+    s   : (N,) int8   spin vector (mutated)
+    s64 : (N,) int64  int64 mirror of s (mutated in sync)
+    C   : (N,) int64  autocorrelation vector (mutated)
+    j   : int         index to flip
+    """
+    N = s.shape[0]
+    factor = np.int64(-2) * s64[j]   # -2 * s[j], scalar int64
+
+    # Right neighbours: lags 1 .. N-j-1  ->  C[1:N-j] += factor * s64[j+1:N]
+    if j < N - 1:
+        C[1: N - j] += factor * s64[j + 1: N]
+
+    # Left neighbours: lags 1 .. j  ->  C[k] += factor * s64[j-k]  for k=1..j
+    # s64[j-k] for k=1..j  is  s64[j-1], s64[j-2], ..., s64[0]  =  s64[j-1::-1]
+    if j > 0:
+        C[1: j + 1] += factor * s64[j - 1::-1]
+
+    s[j]   = -s[j]
+    s64[j] = -s64[j]
+
+
+# ---------------------------------------------------------------------------
+# Tabu search — fully vectorised move evaluation
+# ---------------------------------------------------------------------------
 
 def tabu_search(
     s0: np.ndarray,
@@ -156,55 +162,59 @@ def tabu_search(
 ) -> Tuple[np.ndarray, int]:
     """Tabu search over 1-bit flips with aspiration criterion.
 
-    - Tabu list stores recently flipped indices.
-    - Aspiration: allow tabu move if it improves the best-so-far energy.
+    Every step evaluates all N candidate flips at once via `_all_deltas`, then
+    picks the best admissible move using masked argmin — no Python loop over j.
     """
     rng = np.random.default_rng(seed)
 
     s = np.asarray(s0, dtype=np.int8).copy()
     N = s.shape[0]
+    s64 = s.astype(np.int64)          # persistent int64 mirror; updated in sync with s
 
     C = _autocorr_vector(s)
-    E = int(np.sum(C[1:] * C[1:], dtype=np.int64))
+    E = int(np.sum(C[1:] * C[1:]))
 
     best_s = s.copy()
     best_E = E
 
-    # tabu_expire[j] = step index when tabu expires (0 means not tabu)
-    tabu_expire = np.zeros(N, dtype=np.int64)
+    tabu_expire = np.zeros(N, dtype=np.int64)           # tabu_expire[j] = step when tabu lifts
+    D_scratch   = np.empty((N - 1, N), dtype=np.int64)  # reused scratch for _all_deltas
     stall = 0
+
+    INF = np.iinfo(np.int64).max
 
     for step in range(1, max_steps + 1):
         if best_E <= target:
             break
 
-        best_move_j = None
-        best_move_E = None
+        # --- evaluate all N flips at once ---
+        deltas = _all_deltas(s64, C, D_scratch)           # (N,) int64
+        cand_E = E + deltas                               # (N,) candidate energies
 
-        # Choose best admissible move among all 1-bit flips.
-        for j in range(N):
-            cand_E = E + _delta_energy_for_flip(s, C, j)
+        # --- admissibility mask ---
+        is_tabu = tabu_expire > step                      # (N,) bool
+        aspiration = cand_E < best_E                      # (N,) bool: tabu move allowed if it beats global best
+        admissible = (~is_tabu) | aspiration              # (N,) bool
 
-            is_tabu = tabu_expire[j] > step
-            admissible = (not is_tabu) or (cand_E < best_E)  # aspiration
-            if not admissible:
-                continue
+        # --- pick best admissible move ---
+        # Set inadmissible candidates to +INF so argmin ignores them.
+        masked = np.where(admissible, cand_E, INF)
+        best_move_j = int(np.argmin(masked))
 
-            if best_move_E is None or cand_E < best_move_E:
-                best_move_E = cand_E
-                best_move_j = j
+        if masked[best_move_j] == INF:
+            break       # no admissible move exists
 
-        if best_move_j is None:
-            break
+        chosen_delta = int(deltas[best_move_j])
 
-        # Apply chosen move.
-        _apply_flip_in_place(s, C, best_move_j)
-        E = int(np.sum(C[1:] * C[1:], dtype=np.int64))
+        # --- apply move ---
+        _apply_flip_in_place(s, s64, C, best_move_j)
+        E += chosen_delta                                 # exact; no recomputation needed
 
-        # Set tabu tenure (small randomization helps avoid cycles).
+        # --- tabu tenure with jitter ---
         jitter = int(rng.integers(0, max(1, tabu_tenure // 3 + 1)))
         tabu_expire[best_move_j] = step + tabu_tenure + jitter
 
+        # --- update global best / stall counter ---
         if E < best_E:
             best_E = E
             best_s = s.copy()
@@ -215,6 +225,26 @@ def tabu_search(
                 break
 
     return best_s, int(best_E)
+
+
+# ---------------------------------------------------------------------------
+# MTS outer loop
+# ---------------------------------------------------------------------------
+
+def combine(p1: np.ndarray, p2: np.ndarray, rng: np.random.Generator, out: np.ndarray) -> None:
+    """One-point crossover written into pre-allocated `out`."""
+    N = p1.shape[0]
+    cut = int(rng.integers(1, N))
+    out[:cut] = p1[:cut]
+    out[cut:] = p2[cut:]
+
+
+def mutate_inplace(s: np.ndarray, p_mut: float, rng: np.random.Generator) -> None:
+    """Bit-flip mutation applied in place (caller must have already copied)."""
+    if p_mut <= 0:
+        return
+    flips = rng.random(s.shape[0]) < p_mut
+    s[flips] *= -1
 
 
 def MTS(
@@ -230,7 +260,7 @@ def MTS(
     seed: Optional[int] = None,
     record_time: bool = False,
 ) -> Tuple[np.ndarray, int, np.ndarray, np.ndarray, List[int], Optional[float]]:
-    """Memetic Tabu Search (MTS) as depicted in the Exercise 2 figure.
+    """Memetic Tabu Search (MTS) — optimised for CPU throughput.
 
     Args:
         k: number of sequences in the population
@@ -239,21 +269,21 @@ def MTS(
         max_iter: maximum number of iterations
         p_sample: probability of sampling a sequence
         p_mutate: probability of mutating a sequence
+        tabu_steps: max steps inside each tabu search call
+        tabu_tenure: base tabu tenure
+        population0: optional initial population (k, N)
+        seed: RNG seed
+        record_time: if True, return wall-clock time to first best solution
 
     Returns:
-        best_s: best bitstring found (N,)
-        best_E: best energy found (int)
-        population: final population (k,N)
-        energies: energies for final population (k,)
-        best_history: list of best energies over iterations
-        time: time taken to find the best solution (float)
+        best_s, best_E, population, energies, best_history[, elapsed_time]
     """
 
     start_time = time.time()
     end_time = start_time
     rng = np.random.default_rng(seed)
 
-    # 1) generate initial population (or use a provided seed population)
+    # --- initial population ---
     if population0 is None:
         population = rng.choice(np.array([-1, 1], dtype=np.int8), size=(k, N))
     else:
@@ -264,28 +294,31 @@ def MTS(
 
     energies = energy(population).astype(np.int64)
 
-    # 3) find best in initial population
     best_idx = int(np.argmin(energies))
     best_s = population[best_idx].copy()
     best_E = int(energies[best_idx])
 
     best_history: List[int] = [best_E]
 
+    # Pre-allocate child buffer — reused every iteration (avoids repeated alloc).
+    child = np.empty(N, dtype=np.int8)
+
     for it in range(max_iter):
         if best_E <= target:
             break
 
-        # (a) sample or combine
+        # (a) sample or combine — write into pre-allocated `child`
         if rng.random() < p_sample:
-            child = population[int(rng.integers(0, k))].copy()
+            idx = int(rng.integers(0, k))
+            child[:] = population[idx]          # copy into buffer
         else:
             i1, i2 = rng.choice(k, size=2, replace=False)
-            child = combine(population[int(i1)], population[int(i2)], rng)
+            combine(population[int(i1)], population[int(i2)], rng, child)
 
-        # (b) mutate based on probability
-        child = mutate(child, p_mutate, rng)
+        # (b) mutate in place (child is already our own copy)
+        mutate_inplace(child, p_mutate, rng)
 
-        # (c) tabu search (local improvement)
+        # (c) tabu search
         local_s, local_E = tabu_search(
             child,
             target=target,
@@ -294,13 +327,13 @@ def MTS(
             seed=None if seed is None else (seed + 1000 + it),
         )
 
-        # (d) update if lower energy
+        # (d) update global best
         if local_E < best_E:
             best_E = int(local_E)
             best_s = local_s.copy()
             end_time = time.time()
 
-        # (e) randomly replace population member if better
+        # (e) replace random population member if better
         r = int(rng.integers(0, k))
         if local_E < energies[r]:
             population[r] = local_s

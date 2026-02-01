@@ -8,6 +8,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+# ---------------------------------------------------------------------------
+# Point at the optimised module.  Adjust this path if your layout differs.
+# ---------------------------------------------------------------------------
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import classical.mts as mts
 
 
@@ -40,6 +44,11 @@ def _all_bitstrings_pm1(N: int) -> np.ndarray:
     bits = bits[:, -N:]  # take least-significant N bits
     # Map {0,1} -> {+1,-1}
     return (1 - 2 * bits).astype(np.int8)
+
+
+# ===========================================================================
+# energy / generate — signatures unchanged
+# ===========================================================================
 
 
 def test_generate_bitstrings_shape_and_values():
@@ -96,11 +105,27 @@ def test_energy_N1_is_zero():
     assert int(mts.energy(np.array([-1], dtype=np.int8))) == 0
 
 
+def test_energy_rejects_invalid_rank():
+    s = np.ones((2, 3, 4), dtype=np.int8)
+    try:
+        _ = mts.energy(s)
+        assert False, "expected ValueError for invalid ndim"
+    except ValueError:
+        pass
+
+
+# ===========================================================================
+# combine — now writes into a pre-allocated `out` buffer, returns None
+# ===========================================================================
+
+
 def test_combine_produces_prefix_suffix_from_parents():
     rng = np.random.default_rng(42)
     p1 = np.array([1, 1, 1, 1, 1, 1], dtype=np.int8)
     p2 = np.array([-1, -1, -1, -1, -1, -1], dtype=np.int8)
-    child = mts.combine(p1, p2, rng)
+
+    child = np.empty_like(p1)  # caller-owned buffer
+    mts.combine(p1, p2, rng, child)  # writes result into child
 
     # Find the crossover point by locating first index where it differs from p1.
     # Because parents are all-ones vs all-minus-ones, this is unambiguous.
@@ -111,53 +136,152 @@ def test_combine_produces_prefix_suffix_from_parents():
     assert np.all(child[cut:] == p2[cut:])
 
 
-def test_mutate_probability_extremes():
+def test_combine_does_not_mutate_parents():
+    """combine writes only into `out`; the two parent arrays must be untouched."""
+    rng = np.random.default_rng(77)
+    N = 20
+    p1 = rng.choice(np.array([-1, 1], dtype=np.int8), size=N)
+    p2 = rng.choice(np.array([-1, 1], dtype=np.int8), size=N)
+    p1_before, p2_before = p1.copy(), p2.copy()
+
+    out = np.empty(N, dtype=np.int8)
+    mts.combine(p1, p2, rng, out)
+
+    assert np.array_equal(p1, p1_before)
+    assert np.array_equal(p2, p2_before)
+
+
+# ===========================================================================
+# mutate_inplace — mutates the array it receives; caller must copy first
+# ===========================================================================
+
+
+def test_mutate_inplace_probability_extremes():
     rng = np.random.default_rng(0)
     s = np.array([1, -1, 1, -1, 1], dtype=np.int8)
 
-    # p_mut=0 -> unchanged (by content)
-    out0 = mts.mutate(s, p_mut=0.0, rng=rng)
-    assert np.array_equal(out0, s)
+    # p_mut=0 -> nothing changes
+    work = s.copy()
+    mts.mutate_inplace(work, p_mut=0.0, rng=rng)
+    assert np.array_equal(work, s)
 
-    # p_mut=1 -> all bits flipped
-    out1 = mts.mutate(s, p_mut=1.0, rng=rng)
-    assert np.array_equal(out1, -s)
+    # p_mut=1 -> every bit flipped
+    work = s.copy()
+    mts.mutate_inplace(work, p_mut=1.0, rng=rng)
+    assert np.array_equal(work, -s)
 
 
-def test_mutate_does_not_mutate_input():
+def test_mutate_inplace_only_touches_its_argument():
+    """A separate copy of the original must remain untouched after the call."""
     rng = np.random.default_rng(1234)
-    s = rng.choice(np.array([-1, 1], dtype=np.int8), size=(25,))
-    s_before = s.copy()
+    s_orig = rng.choice(np.array([-1, 1], dtype=np.int8), size=(25,))
+    s_orig_snapshot = s_orig.copy()  # independent snapshot
 
-    _ = mts.mutate(s, p_mut=0.5, rng=rng)
-    assert np.array_equal(s, s_before)
+    work = s_orig.copy()  # the copy we hand to mutate_inplace
+    mts.mutate_inplace(work, p_mut=0.5, rng=rng)
+
+    # The snapshot (standing in for "the original") is untouched.
+    assert np.array_equal(s_orig, s_orig_snapshot)
+    # And work was actually modified (with p=0.5 and N=25 this is
+    # astronomically unlikely to be a no-op).
+    assert not np.array_equal(work, s_orig)
 
 
-def test_delta_energy_matches_full_recompute_for_all_flips():
+# ===========================================================================
+# _all_deltas — replaces the old per-j _delta_energy_for_flip
+# ===========================================================================
+
+
+def test_all_deltas_matches_full_recompute_for_every_flip():
+    """For every bit j, delta from _all_deltas must equal energy(flipped) - energy(original)."""
     rng = np.random.default_rng(3)
     s = rng.choice(np.array([-1, 1], dtype=np.int8), size=(14,))
+    N = s.shape[0]
+
     C = mts._autocorr_vector(s)
     E = int(np.sum(C[1:] * C[1:], dtype=np.int64))
     assert E == int(mts.energy(s))
 
-    for j in range(len(s)):
-        dE = mts._delta_energy_for_flip(s, C, j)
-        s2 = _flip(s, j)
-        assert int(mts.energy(s2)) == E + int(dE)
+    s64 = s.astype(np.int64)
+    D = np.empty((N - 1, N), dtype=np.int64)
+    deltas = mts._all_deltas(s64, C, D)  # (N,) — one call, all flips
+
+    for j in range(N):
+        s_flipped = _flip(s, j)
+        expected_delta = int(mts.energy(s_flipped)) - E
+        assert (
+            int(deltas[j]) == expected_delta
+        ), f"delta mismatch at j={j}: got {deltas[j]}, expected {expected_delta}"
+
+
+def test_all_deltas_does_not_mutate_inputs():
+    """_all_deltas must not modify s64 or C (D is scratch and may be overwritten)."""
+    rng = np.random.default_rng(88)
+    N = 16
+    s = rng.choice(np.array([-1, 1], dtype=np.int8), size=N)
+    C = mts._autocorr_vector(s)
+    s64 = s.astype(np.int64)
+
+    s64_before = s64.copy()
+    C_before = C.copy()
+    D = np.empty((N - 1, N), dtype=np.int64)
+
+    mts._all_deltas(s64, C, D)
+
+    assert np.array_equal(s64, s64_before)
+    assert np.array_equal(C, C_before)
+
+
+# ===========================================================================
+# _apply_flip_in_place — now takes (s, s64, C, j)
+# ===========================================================================
 
 
 def test_apply_flip_in_place_consistent_with_recompute():
+    """After flipping index j, both s/s64 and C must match a full recompute."""
     rng = np.random.default_rng(4)
     s = rng.choice(np.array([-1, 1], dtype=np.int8), size=(11,))
     C = mts._autocorr_vector(s)
+    s64 = s.astype(np.int64)
 
     for j in [0, 3, 7, 10]:
+        # Ground truth from scratch
         s_expected = _flip(s, j)
         C_expected = mts._autocorr_vector(s_expected)
+        s64_expected = s_expected.astype(np.int64)
 
-        mts._apply_flip_in_place(s, C, j)
-        assert np.array_equal(s, s_expected)
-        assert np.array_equal(C, C_expected)
+        # In-place update
+        mts._apply_flip_in_place(s, s64, C, j)
+
+        assert np.array_equal(s, s_expected), f"s  mismatch after flip j={j}"
+        assert np.array_equal(s64, s64_expected), f"s64 mismatch after flip j={j}"
+        assert np.array_equal(C, C_expected), f"C  mismatch after flip j={j}"
+
+
+def test_apply_flip_in_place_round_trip():
+    """Flipping the same index twice is a no-op on (s, s64, C)."""
+    rng = np.random.default_rng(99)
+    N = 18
+    s = rng.choice(np.array([-1, 1], dtype=np.int8), size=N)
+    C = mts._autocorr_vector(s)
+    s64 = s.astype(np.int64)
+
+    s_orig = s.copy()
+    s64_orig = s64.copy()
+    C_orig = C.copy()
+
+    j = 5
+    mts._apply_flip_in_place(s, s64, C, j)
+    mts._apply_flip_in_place(s, s64, C, j)  # flip back
+
+    assert np.array_equal(s, s_orig)
+    assert np.array_equal(s64, s64_orig)
+    assert np.array_equal(C, C_orig)
+
+
+# ===========================================================================
+# tabu_search — public signature unchanged
+# ===========================================================================
 
 
 def test_tabu_search_returns_nonworse_best():
@@ -177,6 +301,11 @@ def test_tabu_search_does_not_mutate_input():
 
     _best_s, _best_E = mts.tabu_search(s0, max_steps=30, seed=0)
     assert np.array_equal(s0, s0_before)
+
+
+# ===========================================================================
+# MTS — public signature unchanged
+# ===========================================================================
 
 
 def test_mts_deterministic_with_seed():
@@ -224,15 +353,6 @@ def test_mts_population0_all_sequences_matches_exhaustive_best():
     assert np.array_equal(Es, Es0.astype(np.int64))
     assert int(best_E) == expected_best
     assert hist == [expected_best]
-
-
-def test_energy_rejects_invalid_rank():
-    s = np.ones((2, 3, 4), dtype=np.int8)
-    try:
-        _ = mts.energy(s)
-        assert False, "expected ValueError for invalid ndim"
-    except ValueError:
-        pass
 
 
 def test_mts_rejects_population0_not_2d():
