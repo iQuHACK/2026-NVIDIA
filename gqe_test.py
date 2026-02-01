@@ -202,21 +202,13 @@ def sample_optimized(coeffs: list[float], words: list[cudaq.pauli_word]):
     for qubit in q:
         mz(qubit)
 
-def labs_energy(bitstring):
-    # Convert 0/1 -> +1/-1
-    s = [1 if b=="0" else -1 for b in bitstring]
+def labs_energy_01(x):
+    s = 2 * np.asarray(x) - 1
+    N = len(s)
     E = 0
-    # 2-body terms
-    for i in range(N-2):
-        max_k = (N-i)//2
-        for k in range(1, max_k+1):
-            E += 2 * s[i] * s[i+k]
-    # 4-body terms
-    for i in range(N-3):
-        max_t = (N-i-1)//2
-        for t in range(1, max_t+1):
-            for k in range(t+1, N-i-t):
-                E += 4 * s[i]*s[i+t]*s[i+k]*s[i+k+t]
+    for k in range(1, N):
+        Ck = np.sum(s[:N-k] * s[k:])
+        E += Ck**2
     return E
 
 
