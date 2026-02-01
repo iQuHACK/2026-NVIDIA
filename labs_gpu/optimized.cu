@@ -79,28 +79,8 @@ __device__ __forceinline__ void warpReduceMin(long long &val, int &idx) {
     }
 }
 
-__device__ __forceinline__ int count_mismatches(uint2 seq, int k, int N) {
-    // Shift the 128-bit sequence right by k
-    uint2 shifted;
-    if (k < 64) {
-        shifted.x = (seq.x >> k) | (seq.y << (64 - k));
-        shifted.y = seq.y >> k;
-    } else {
-        shifted.x = seq.y >> (k - 64);
-        shifted.y = 0;
-    }
 
-    // XOR to find mismatches
-    unsigned long long xor_x = seq.x ^ shifted.x;
-    unsigned long long xor_y = seq.y ^ shifted.y;
-
-    // Mask out bits beyond N
-    // (Assuming unused bits in seq are 0, we need to mask valid range)
-    // Implementation detail: Ensure unused bits are always 0 during Init.
-    
-    return __popcll(xor_x) + __popcll(xor_y);
-}
-
+__launch_bounds__(THREADS, 16)
 __global__ void tabu_kernel(int N, int iterations, int8_t* d_pop, curandState* states) {
     extern __shared__ char smem[];
     int8_t* s_seq = (int8_t*)smem; 
@@ -226,7 +206,7 @@ int main(int argc, char** argv) {
     double total_wall_time = 0;
     unsigned long long total_moves = 0;
 
-    for (int N = 3; N <= 64; N++) {
+    for (int N = 66; N <= 66; N++) {
         int target_e = TARGETS[N];
         long long current_best = LLONG_MAX;
         

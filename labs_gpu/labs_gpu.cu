@@ -79,6 +79,8 @@ __device__ __forceinline__ void warpReduceMin(long long &val, int &idx) {
     }
 }
 
+
+__launch_bounds__(THREADS, 16)
 __global__ void tabu_kernel(int N, int iterations, int8_t* d_pop, curandState* states) {
     extern __shared__ char smem[];
     int8_t* s_seq = (int8_t*)smem; 
