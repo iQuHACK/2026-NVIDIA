@@ -5,15 +5,15 @@
 
 **Required Sections:**
 
-1. **The Workflow:** How did you organize your AI agents? (e.g., "We used a Cursor agent for coding and a separate ChatGPT instance for documentation").
-2. **Verification Strategy:** How did you validate code created by AI?
+1. **The Workflow:** We used Cursor for coding and debugging with the QAOA/MTS pipeline.
+2. **Verification Strategy:** We verified code using a some targeted test cases and solved them by hand to check small N (e.g. N=3) energy values. 
 * *Requirement:* You must describe specific **Unit Tests** you wrote to catch AI hallucinations or logic errors.
 
 
 3. **The "Vibe" Log:**
-* *Win:* One instance where AI saved you hours.
-* *Learn:* One instance where you altered your prompting strategy (provided context, created a skills.md file, etc) to get better results from your interaction with the AI agent.
-* *Fail:* One instance where AI failed/hallucinated, and how you fixed it.
+* *Win:* Debugging
+* *Learn:* Dummping all the resources onto cursor
+* *Fail:* ZERO!
 * *Context Dump:* Share any prompts, `skills.md` files, MCP etc. that demonstrate thoughtful prompting.
 
 
